@@ -7,7 +7,7 @@ const userHome = homedir();
 
 export const values = {
   myNameIs: 'devlink',
-  ignoreFileName: '.devlinkignore',
+  ignoreFileName: '.mayrlabs/.devlinkignore',
   myNameIsCapitalized: 'Devlink',
   lockfileName: 'devlink.lock',
   devlinkPackagesFolder: '.mayrlabs/devlink',

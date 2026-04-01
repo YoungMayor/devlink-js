@@ -20,18 +20,18 @@ When developing and authoring multiple packages (private or public), you often f
 
 ## Installation
 
-![npm (scoped)](https://img.shields.io/npm/v/devlink.svg?maxAge=86400) [![Build Status](https://travis-ci.org/whitecolor/devlink.svg?branch=master)](https://travis-ci.org/whitecolor/devlink)
+![npm (scoped)](https://img.shields.io/npm/v/@mayrlabs/devlink.svg?maxAge=86400)
 
 Using NPM:
 
 ```bash
-npm i devlink -g
+npm i @mayrlabs/devlink -g
 ```
 
 Using Yarn:
 
 ```bash
-yarn global add devlink
+yarn global add @mayrlabs/devlink
 ```
 
 Some documented features might not have been published yet, see the [change log](./CHANGELOG.md).
@@ -44,7 +44,7 @@ Some documented features might not have been published yet, see the [change log]
 - It will copy [all the files that should be published in remote NPM registry](https://docs.npmjs.com/files/package.json#files).
 - If your package has any of these lifecycle scripts: `prepublish`, `prepare`, `prepublishOnly`, `prepack`, `predevlinkpublish`, they will run before in this order. If your package has any of these: `postdevlinkpublish`, `postpack`, `publish`, `postpublish`, they will run after in this order. Use `--no-scripts` to publish without running scripts.
 - When publishing, `devlink` can optionally calculate a hash signature from the file contents and use the signature in the resulting package `version` (like `"1.2.3+ffffffff"`). To enable this, pass the `--sig` option to the `devlink publish` command.
-- You may also use `.mayrlabs/devlinkignore` to exclude files from publishing to devlink repo, for example, files like README.md, etc.
+- You may also use `.mayrlabs/.devlinkignore` to exclude files from publishing to devlink repo, for example, files like README.md, etc.
 - `--content` flag will show included files in the published package
 - **NB!** In terms of which files will be included in the package `devlink` fully supposed to emulate behavior of `npm` client (`npm pack`). [If you have nested `.mayrlabs/devlink` folder in your package](https://github.com/whitecolor/devlink/issues/95) that you are going to publish with `devlink` and you use `package.json` `files` list, it should be included there explicitly.
 - **NB!** Windows users should make sure the `LF` new line symbol is used in published sources; it may be needed for some packages to work correctly (for example, `bin` scripts). `devlink` won't convert line endings for you (because `npm` and `yarn` won't either).
@@ -109,7 +109,7 @@ Some documented features might not have been published yet, see the [change log]
 
 - You may want to keep shared `devlink'ed` stuff within the projects you are working on and treat it as a part of the project's codebase. This may really simplify management and usage of shared _work in progress_ packages within your projects and help to make things consistent. So, then just do it, keep `.mayrlabs/devlink` folder and `devlink.lock` in git.
 - Replace it with published versions from remote repository when ready.
-- **NB!** - standard non-code files like `README`, `LICENCE` etc. will be included also, so you may want to exclude them in `.gitignore` with a line like `**/.mayrlabs/devlink/**/*.md` or you may use `.mayrlabs/devlinkignore` not to include those files in package content.
+- **NB!** - standard non-code files like `README`, `LICENCE` etc. will be included also, so you may want to exclude them in `.gitignore` with a line like `**/.mayrlabs/devlink/**/*.md` or you may use `.mayrlabs/.devlinkignore` not to include those files in package content.
 
 ### Publish/push sub-projects
 
