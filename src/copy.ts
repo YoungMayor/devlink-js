@@ -34,6 +34,8 @@ export const getFileHash = (srcPath: string, relPath = '') => {
 };
 
 const copyFile = async (srcPath: string, destPath: string, relPath = '') => {
+  await fsPromises.mkdir(dirname(destPath), { recursive: true });
+
   await fsPromises.cp(srcPath, destPath, { recursive: true });
 
   return getFileHash(srcPath, relPath);

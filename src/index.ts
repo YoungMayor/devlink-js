@@ -27,7 +27,7 @@ export interface DevlinkGlobal {
 }
 /*
   Not using Node.Global because in this case
-  <reference types="mocha" /> is aded in built d.ts file
+  <reference types="mocha" /> is added in built d.ts file
 */
 export const devlinkGlobal: DevlinkGlobal = global as any;
 

@@ -28,7 +28,7 @@ export interface PackageManifest {
   dependencies?: { [name: string]: string };
   devDependencies?: { [name: string]: string };
   peerDependencies?: { [name: string]: string };
-  devlink: Partial<{ sig: boolean; signature: boolean; noSig: boolean }>;
+  devlink?: Partial<{ sig: boolean; signature: boolean; noSig: boolean }>;
   workspaces?: string[];
   scripts?: PackageScripts;
   __Indent?: string;
