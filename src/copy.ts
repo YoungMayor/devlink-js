@@ -1,24 +1,31 @@
 import crypto from 'node:crypto';
+import * as fs from 'node:fs';
+import * as fsPromises from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
-import fs from 'fs-extra';
 import ignore from 'ignore';
 import npmPacklist from 'npm-packlist';
-
-import { readIgnoreFile, readPackageManifest, readSignatureFile } from '.';
+import {
+  readIgnoreFile,
+  readPackageManifest,
+  readSignatureFile,
+} from './index.js';
 import {
   type PackageManifest,
   getStorePackagesDir,
   writePackageManifest,
   writeSignatureFile,
-} from '.';
+} from './index.js';
 
 const shortSignatureLength = 8;
 
 export const getFileHash = (srcPath: string, relPath = '') => {
-  return new Promise<string>(async (resolve, reject) => {
+  return new Promise<string>((resolve, reject) => {
     const stream = fs.createReadStream(srcPath);
     const md5sum = crypto.createHash('md5');
+
     md5sum.update(relPath.replace(/\\/g, '/'));
+
     stream.on('data', (data: Buffer | string) => md5sum.update(data));
     stream.on('error', reject).on('close', () => {
       resolve(md5sum.digest('hex'));
@@ -27,7 +34,8 @@ export const getFileHash = (srcPath: string, relPath = '') => {
 };
 
 const copyFile = async (srcPath: string, destPath: string, relPath = '') => {
-  await fs.copy(srcPath, destPath);
+  await fsPromises.cp(srcPath, destPath, { recursive: true });
+
   return getFileHash(srcPath, relPath);
 };
 
@@ -35,14 +43,15 @@ const mapObj = <T, R, K extends string>(
   obj: Record<K, T>,
   mapValue: (value: T, key: K) => R,
 ): Record<string, R> => {
-  if (Object.keys(obj).length === 0) return {};
+  const resObj: Record<string, R> = {};
 
-  return Object.keys(obj).reduce<Record<string, R>>((resObj, key) => {
-    if (obj[key as K]) {
-      resObj[key] = mapValue(obj[key as K], key as K);
-    }
-    return resObj;
-  }, {});
+  for (const key of Object.keys(obj) as K[]) {
+    const val = obj[key];
+
+    if (val !== undefined && val !== null) resObj[key] = mapValue(val, key);
+  }
+
+  return resObj;
 };
 
 const resolveWorkspaceDepVersion = (
@@ -50,22 +59,18 @@ const resolveWorkspaceDepVersion = (
   pkgName: string,
   workingDir: string,
 ): string => {
-  if (version !== '*' && version !== '^' && version !== '~') {
-    // Regular semver specification
-    return version;
-  }
+  // Regular semver specification
+  if (version !== '*' && version !== '^' && version !== '~') return version;
+
   // Resolve workspace version aliases
   const prefix = version === '^' || version === '~' ? version : '';
 
   try {
-    const pkgPath = require.resolve(join(pkgName, 'package.json'), {
-      paths: [workingDir],
-    });
-    if (!pkgPath) {
-    }
+    const require = createRequire(join(workingDir, 'index.js'));
+    const pkgPath = require.resolve(join(pkgName, 'package.json'));
     const resolved = readPackageManifest(dirname(pkgPath))?.version;
 
-    return `${prefix}${resolved}` || '*';
+    return prefix + resolved || '*';
   } catch (e) {
     console.warn('Could not resolve workspace package location for', pkgName);
     return '*';
@@ -81,14 +86,17 @@ const resolveWorkspaces = (
       ? mapObj(deps, (val, depPkgName) => {
           if (val.startsWith('workspace:')) {
             const version = val.split(':')[1];
+
             const resolved = resolveWorkspaceDepVersion(
               version,
               depPkgName,
               workingDir,
             );
+
             console.log(
               `Resolving workspace package ${depPkgName} version ==> ${resolved}`,
             );
+
             return resolved;
           }
           return val;
@@ -131,9 +139,8 @@ export const copyPackageToStore = async (options: {
   const { workingDir, devMod = true } = options;
   const pkg = readPackageManifest(workingDir);
 
-  if (!pkg) {
-    throw 'Error copying package to store.';
-  }
+  if (!pkg) throw 'Error copying package to store.';
+
   const copyFromDir = options.workingDir;
   const storePackageStoreDir = join(
     getStorePackagesDir(),
@@ -143,21 +150,31 @@ export const copyPackageToStore = async (options: {
 
   const ignoreFileContent = readIgnoreFile(workingDir);
 
-  const ignoreRule = ignore().add(ignoreFileContent);
+  const _ignore = (ignore as any).default || ignore;
+  const ignoreRule = _ignore().add(ignoreFileContent);
+
   const npmList: string[] = await (await npmPacklist({ path: workingDir })).map(
     fixScopedRelativeName,
   );
 
   const filesToCopy = npmList.filter((f) => !ignoreRule.ignores(f));
+
   if (options.content) {
     console.info('Files included in published content:');
-    filesToCopy.sort().forEach((f) => {
-      console.log(`- ${f}`);
-    });
+    const sortedFiles = filesToCopy.sort();
+
+    for (const f of sortedFiles) console.log(`- ${f}`);
+
     console.info(`Total ${filesToCopy.length} files.`);
   }
   const copyFilesToStore = async () => {
-    await fs.remove(storePackageStoreDir);
+    if (fs.existsSync(storePackageStoreDir)) {
+      await fsPromises.rm(storePackageStoreDir, {
+        recursive: true,
+        force: true,
+      });
+    }
+
     return Promise.all(
       filesToCopy
         .sort()
@@ -170,6 +187,7 @@ export const copyPackageToStore = async (options: {
         ),
     );
   };
+
   const hashes = options.changed
     ? await Promise.all(
         filesToCopy
@@ -185,15 +203,16 @@ export const copyPackageToStore = async (options: {
 
   if (options.changed) {
     const publishedSig = readSignatureFile(storePackageStoreDir);
-    if (signature === publishedSig) {
-      return false;
-    }
+
+    if (signature === publishedSig) return false;
+
     await copyFilesToStore();
   }
 
   writeSignatureFile(storePackageStoreDir, signature);
+
   const versionPre = options.signature
-    ? `+${signature.substr(0, shortSignatureLength)}`
+    ? `+${signature.substring(0, shortSignatureLength)}`
     : '';
 
   const resolveDeps = (pkg: PackageManifest): PackageManifest =>
@@ -204,6 +223,8 @@ export const copyPackageToStore = async (options: {
     devlinkSig: signature,
     version: pkg.version + versionPre,
   };
+
   writePackageManifest(storePackageStoreDir, pkgToWrite);
+
   return signature;
 };

@@ -1,7 +1,10 @@
 #!/usr/bin/env node
-import { join, resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import yargs from 'yargs';
-
+import { checkManifest } from './check.js';
+import { disabledConsoleOutput, makeConsoleColored } from './console.js';
 import {
   addPackages,
   devlinkGlobal,
@@ -10,14 +13,12 @@ import {
   removePackages,
   updatePackages,
   values,
-} from '.';
+} from './index.js';
+import { cleanInstallations, showInstallations } from './installations.js';
+import type { PublishPackageOptions } from './publish.js';
+import { readRcConfig } from './rc.js';
 
-import { cleanInstallations, showInstallations } from './installations';
-
-import { checkManifest } from './check';
-import { disabledConsoleOutput, makeConsoleColored } from './console';
-import type { PublishPackageOptions } from './publish';
-import { readRcConfig } from './rc';
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const updateFlags = ['update', 'upgrade', 'up'];
 
@@ -33,7 +34,8 @@ const publishFlags = [
 const cliCommand = values.myNameIs;
 
 const getVersionMessage = () => {
-  const pkg = require(`${__dirname}/../package.json`);
+  const pkgPath = join(__dirname, '..', 'package.json');
+  const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
   return pkg.version;
 };
 
@@ -41,15 +43,14 @@ makeConsoleColored();
 
 const rcArgs = readRcConfig();
 
-if (process.argv.includes('--quiet') || rcArgs.quiet) {
-  disabledConsoleOutput();
-}
+if (process.argv.includes('--quiet') || rcArgs.quiet) disabledConsoleOutput();
 
 const getPublishOptions = (
   argv: any,
   override: Partial<PublishPackageOptions> = {},
 ): PublishPackageOptions => {
   const folder = argv._[1];
+
   return {
     workingDir: join(process.cwd(), folder || ''),
     push: argv.push,
@@ -67,11 +68,12 @@ const getPublishOptions = (
 };
 
 /* tslint:disable-next-line */
-yargs
+yargs(process.argv.slice(2))
   .usage(`${cliCommand} [command] [options] [package1 [package2...]]`)
   .coerce('store-folder', (folder: string) => {
     if (!devlinkGlobal.devlinkStoreMainDir) {
       devlinkGlobal.devlinkStoreMainDir = resolve(folder);
+
       console.log(
         'Package store folder used:',
         devlinkGlobal.devlinkStoreMainDir,
@@ -80,26 +82,21 @@ yargs
   })
   .command({
     command: '*',
-    builder: () => {
-      return yargs.boolean(['version']);
-    },
+    builder: (y) => y.boolean(['version']),
     handler: (argv) => {
       let msg = 'Use `devlink help` to see available commands.';
-      if (argv._[0]) {
-        msg = `Unknown command \`${argv._[0]}\`. ${msg}`;
-      } else {
-        if (argv.version) {
-          msg = getVersionMessage();
-        }
-      }
+
+      if (argv._[0]) msg = `Unknown command \`${argv._[0]}\`. ${msg}`;
+      else if (argv.version) msg = getVersionMessage();
+
       console.log(msg);
     },
   })
   .command({
     command: 'publish',
     describe: 'Publish package in devlink local repo',
-    builder: () => {
-      return yargs
+    builder: (y) => {
+      return y
         .default('sig', false)
         .default('scripts', true)
         .default('dev-mod', true)
@@ -116,8 +113,8 @@ yargs
     command: 'push',
     describe:
       'Publish package in devlink local repo and push to all installations',
-    builder: () => {
-      return yargs
+    builder: (y) => {
+      return y
         .default('sig', false)
         .default('scripts', false)
         .default('dev-mod', true)
@@ -134,9 +131,7 @@ yargs
   .command({
     command: 'installations',
     describe: 'Work with installations file: show/clean',
-    builder: () => {
-      return yargs.boolean(['dry']);
-    },
+    builder: (y) => y.boolean(['dry']),
     handler: async (argv) => {
       const action = argv._[1];
       const packages = argv._.slice(2) as string[];
@@ -144,9 +139,11 @@ yargs
         case 'show':
           showInstallations({ packages });
           break;
+
         case 'clean':
           await cleanInstallations({ packages, dry: !!argv.dry });
           break;
+
         default:
           console.info('Need installation action: show | clean');
       }
@@ -155,8 +152,8 @@ yargs
   .command({
     command: 'add',
     describe: 'Add package from devlink repo to the project',
-    builder: () => {
-      return yargs
+    builder: (y) => {
+      return y
         .boolean(['file', 'dev', 'link', ...updateFlags])
         .alias('D', 'dev')
         .boolean('workspace')
@@ -180,9 +177,7 @@ yargs
   .command({
     command: 'link',
     describe: 'Link package from devlink repo to the project',
-    builder: () => {
-      return yargs.default(rcArgs as any).help(true);
-    },
+    builder: (y) => y.default(rcArgs as any).help(true),
     handler: (argv) => {
       addPackages(argv._.slice(1) as string[], {
         link: true,
@@ -194,8 +189,8 @@ yargs
   .command({
     command: 'update',
     describe: 'Update packages from devlink repo',
-    builder: () => {
-      return yargs
+    builder: (y) => {
+      return y
         .boolean([...updateFlags])
         .default(rcArgs as any)
         .help(true);
@@ -211,8 +206,8 @@ yargs
   .command({
     command: 'restore',
     describe: 'Restore retreated packages',
-    builder: () => {
-      return yargs
+    builder: (y) => {
+      return y
         .boolean([...updateFlags])
         .default(rcArgs as any)
         .help(true);
@@ -228,8 +223,8 @@ yargs
   .command({
     command: 'remove',
     describe: 'Remove packages from the project',
-    builder: () => {
-      return yargs
+    builder: (y) => {
+      return y
         .boolean(['retreat', 'all'])
         .default(rcArgs as any)
         .help(true);
@@ -246,9 +241,7 @@ yargs
     command: 'retreat',
     describe:
       'Remove packages from project, but leave in lock file (to be restored later)',
-    builder: () => {
-      return yargs.boolean(['all']).help(true);
-    },
+    builder: (y) => y.boolean(['all']).help(true),
     handler: (argv) => {
       removePackages(argv._.slice(1) as string[], {
         all: !!argv.all,
@@ -260,14 +253,13 @@ yargs
   .command({
     command: 'check',
     describe: 'Check package.json for devlink packages',
-    builder: () => {
-      return yargs.boolean(['commit']).usage('check usage here').help(true);
+    builder: (y) => {
+      return y.boolean(['commit']).usage('check usage here').help(true);
     },
     handler: (argv) => {
       const gitParams = process.env.GIT_PARAMS;
-      if (argv.commit) {
-        console.log('gitParams', gitParams);
-      }
+      if (argv.commit) console.log('gitParams', gitParams);
+
       checkManifest({
         commit: !!argv.commit,
         all: !!argv.all,
@@ -282,4 +274,5 @@ yargs
       console.log(getStoreMainDir());
     },
   })
-  .help('help').argv;
+  .help('help')
+  .parse();

@@ -14,14 +14,17 @@ const overloadConsole = ({
 }) => {
   const oldMethods: Methods = {};
 
-  methods.forEach((m) => {
+  for (const m of methods) {
     const method = m as keyof Console;
-    if (typeof console[method] !== 'function') return;
+
+    if (typeof console[method] !== 'function') continue;
+
     oldMethods[method] = console[method];
+
     console[method] = (...args: any[]) => {
       output({ method, args, oldMethods });
     };
-  });
+  }
 };
 
 export const disabledConsoleOutput = () => {

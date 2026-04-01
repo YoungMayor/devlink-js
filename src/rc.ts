@@ -1,5 +1,7 @@
-import fs from 'node:fs';
-const ini = require('ini');
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import * as ini from 'ini';
+import { values } from './index.js';
 
 const validFlags = [
   'sig',
@@ -13,9 +15,8 @@ const validFlags = [
 const fileName = '.mayrlabs/devlinkrc';
 
 const readFile = (): Record<string, string | boolean> | null => {
-  if (fs.existsSync(fileName)) {
-    return ini.parse(fs.readFileSync(fileName, 'utf-8'));
-  }
+  if (existsSync(fileName)) return ini.parse(readFileSync(fileName, 'utf-8'));
+
   return null;
 };
 
@@ -31,9 +32,14 @@ export const readRcConfig = (): Record<string, string | boolean> => {
     console.warn(`Unknown option in ${fileName}: ${unknown[0]}`);
     process.exit();
   }
-  return Object.keys(rcOptions).reduce((prev, flag) => {
-    return validFlags.includes(flag)
-      ? { ...prev, [flag]: rcOptions[flag] }
-      : prev;
-  }, {});
+
+  return Object.keys(rcOptions).reduce<Record<string, string | boolean>>(
+    (prev, flag) => {
+      if (validFlags.includes(flag)) {
+        prev[flag] = rcOptions[flag];
+      }
+      return prev;
+    },
+    {},
+  );
 };

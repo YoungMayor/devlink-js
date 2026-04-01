@@ -1,8 +1,9 @@
 import { exec, execSync } from 'node:child_process';
 import { join } from 'node:path';
 
+import { copyPackageToStore } from './copy.js';
 import {
-  PackageManifest,
+  type PackageManifest,
   type PackageScripts,
   execLoudOptions,
   getPackageManager,
@@ -10,14 +11,13 @@ import {
   readPackageManifest,
   updatePackages,
   values,
-} from '.';
-import { copyPackageToStore } from './copy';
+} from './index.js';
 import {
   type PackageInstallation,
   readInstallationsFile,
   removeInstallations,
-} from './installations';
-import { pmRunScriptCmd } from './pm';
+} from './installations.js';
+import { pmRunScriptCmd } from './pm.js';
 
 export interface PublishPackageOptions {
   workingDir: string;
@@ -37,15 +37,15 @@ export interface PublishPackageOptions {
 export const publishPackage = async (options: PublishPackageOptions) => {
   const workingDir = options.workingDir;
   const pkg = readPackageManifest(workingDir);
-  if (!pkg) {
-    return;
-  }
+
+  if (!pkg) return;
 
   const pm = getPackageManager(workingDir);
 
   const runPmScript = (script: keyof PackageScripts) => {
     if (!options.scripts) return;
     const scriptCmd = pkg.scripts?.[script];
+
     if (scriptCmd) {
       console.log(`Running ${script} script: ${scriptCmd}`);
       execSync(`${pmRunScriptCmd[pm]} ${script}`, {
@@ -70,7 +70,8 @@ export const publishPackage = async (options: PublishPackageOptions) => {
     'prepack',
     'predevlinkpublish',
   ];
-  preScripts.forEach(runPmScript);
+
+  for (const script of preScripts) runPmScript(script);
 
   const copyRes = await copyPackageToStore(options);
 
@@ -85,14 +86,24 @@ export const publishPackage = async (options: PublishPackageOptions) => {
     'publish',
     'postpublish',
   ];
-  postScripts.forEach(runPmScript);
+
+  for (const script of postScripts) {
+    runPmScript(script);
+  }
 
   const publishedPackageDir = join(
     getStorePackagesDir(),
     pkg.name,
     pkg.version,
   );
-  const publishedPkg = readPackageManifest(publishedPackageDir)!;
+  const publishedPkg = readPackageManifest(publishedPackageDir);
+
+  if (!publishedPkg) {
+    throw new Error(
+      `Could not read published package manifest in ${publishedPackageDir}`,
+    );
+  }
+
   console.log(
     `${publishedPkg.name}@${publishedPkg.version} published in store.`,
   );
@@ -101,8 +112,10 @@ export const publishPackage = async (options: PublishPackageOptions) => {
     const installationsConfig = readInstallationsFile();
     const installationPaths = installationsConfig[pkg.name] || [];
     const installationsToRemove: PackageInstallation[] = [];
+
     for (const workingDir of installationPaths) {
       console.info(`Pushing ${pkg.name}@${pkg.version} in ${workingDir}`);
+
       const installationsToRemoveForPkg = await updatePackages([pkg.name], {
         replace: options.replace,
         workingDir,

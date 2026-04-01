@@ -1,19 +1,19 @@
+import * as fs from 'node:fs';
 import { join } from 'node:path';
-import * as fs from 'fs-extra';
 import {
   type PackageInstallation,
   type PackageName,
   removeInstallations,
-} from './installations';
+} from './installations.js';
 
-import { readLockfile, removeLockfile, writeLockfile } from './lockfile';
+import { readLockfile, removeLockfile, writeLockfile } from './lockfile.js';
 
 import {
   parsePackageName,
   readPackageManifest,
   values,
   writePackageManifest,
-} from '.';
+} from './index.js';
 
 export interface RemovePackagesOptions {
   all?: boolean;
@@ -30,9 +30,9 @@ const isDevlinkFileAddress = (address: string, name: string) => {
 
 const removeIfEmpty = (folder: string) => {
   const isEmpty = fs.existsSync(folder) && !fs.readdirSync(folder).length;
-  if (isEmpty) {
-    fs.removeSync(folder);
-  }
+
+  if (isEmpty) fs.rmSync(folder, { recursive: true, force: true });
+
   return isEmpty;
 };
 
@@ -43,11 +43,13 @@ export const removePackages = async (
   const { workingDir } = options;
   const lockFileConfig = readLockfile({ workingDir: workingDir });
   const pkg = readPackageManifest(workingDir);
+
   if (!pkg) return;
+
   let packagesToRemove: PackageName[] = [];
 
   if (packages.length) {
-    packages.forEach((packageName) => {
+    for (const packageName of packages) {
       const { name, version } = parsePackageName(packageName);
       if (lockFileConfig.packages[name]) {
         if (!version || version === lockFileConfig.packages[name].version) {
@@ -59,7 +61,7 @@ export const removePackages = async (
         );
         packagesToRemove.push(name);
       }
-    });
+    }
   } else {
     if (options.all) {
       packagesToRemove = Object.keys(lockFileConfig.packages) as PackageName[];
@@ -70,42 +72,38 @@ export const removePackages = async (
 
   let lockfileUpdated = false;
   const removedPackagedFromManifest: string[] = [];
-  packagesToRemove.forEach((name) => {
+
+  for (const name of packagesToRemove) {
     const lockedPackage = lockFileConfig.packages[name];
 
-    let depsWithPackage;
-    if (pkg.dependencies?.[name]) {
-      depsWithPackage = pkg.dependencies;
-    }
-    if (pkg.devDependencies?.[name]) {
-      depsWithPackage = pkg.devDependencies;
-    }
+    let depsWithPackage: Record<string, string> | undefined;
+
+    if (pkg.dependencies?.[name]) depsWithPackage = pkg.dependencies;
+
+    if (pkg.devDependencies?.[name]) depsWithPackage = pkg.devDependencies;
+
     if (depsWithPackage && isDevlinkFileAddress(depsWithPackage[name], name)) {
       removedPackagedFromManifest.push(name);
+
       if (lockedPackage?.replaced) {
         depsWithPackage[name] = lockedPackage.replaced;
-      } else {
-        delete depsWithPackage[name];
-      }
+      } else delete depsWithPackage[name];
     }
     if (!options.retreat) {
       lockfileUpdated = true;
+
       delete lockFileConfig.packages[name];
-    } else {
+    } else if (lockedPackage) {
       console.log(
         `Retreating package ${name} version ==>`,
         lockedPackage.replaced,
       );
     }
-  });
-
-  if (lockfileUpdated) {
-    writeLockfile(lockFileConfig, { workingDir });
   }
 
-  if (removedPackagedFromManifest.length) {
-    writePackageManifest(workingDir, pkg);
-  }
+  if (lockfileUpdated) writeLockfile(lockFileConfig, { workingDir });
+
+  if (removedPackagedFromManifest.length) writePackageManifest(workingDir, pkg);
 
   const installationsToRemove: PackageInstallation[] = packagesToRemove.map(
     (name) => ({
@@ -116,14 +114,23 @@ export const removePackages = async (
   );
 
   const devlinkFolder = join(workingDir, values.devlinkPackagesFolder);
-  removedPackagedFromManifest.forEach((name) => {
-    fs.removeSync(join(workingDir, 'node_modules', name));
-  });
-  packagesToRemove.forEach((name) => {
-    if (!options.retreat) {
-      fs.removeSync(join(devlinkFolder, name));
+
+  for (const name of removedPackagedFromManifest) {
+    if (fs.existsSync(join(workingDir, 'node_modules', name))) {
+      fs.rmSync(join(workingDir, 'node_modules', name), {
+        recursive: true,
+        force: true,
+      });
     }
-  });
+  }
+
+  for (const name of packagesToRemove) {
+    if (!options.retreat) {
+      if (fs.existsSync(join(devlinkFolder, name))) {
+        fs.rmSync(join(devlinkFolder, name), { recursive: true, force: true });
+      }
+    }
+  }
 
   const isScopedPackage = (name: string) => name.startsWith('@');
 
@@ -141,7 +148,5 @@ export const removePackages = async (
     }
   }
 
-  if (!options.retreat) {
-    await removeInstallations(installationsToRemove);
-  }
+  if (!options.retreat) await removeInstallations(installationsToRemove);
 };

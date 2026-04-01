@@ -1,8 +1,9 @@
+import type * as fs from 'node:fs';
+import * as fsPromises from 'node:fs/promises';
 import { resolve } from 'node:path';
 import util from 'node:util';
-import fs from 'fs-extra';
 import glob from 'glob';
-import { getFileHash } from './copy';
+import { getFileHash } from './copy.js';
 
 const NODE_MAJOR_VERSION = Number.parseInt(
   (<any>process).versions.node.split('.').shift(),
@@ -74,9 +75,10 @@ export const copyDirSafe = async (
     srcCached[file] = srcCached[file] || {};
     const srcFilePath = resolve(srcDir, file);
     const destFilePath = resolve(destDir, file);
-    const srcFileStat = srcCached[file].stat || (await fs.stat(srcFilePath));
+    const srcFileStat =
+      srcCached[file].stat || (await fsPromises.stat(srcFilePath));
     srcCached[file].stat = srcFileStat;
-    const destFileStat = await fs.stat(destFilePath);
+    const destFileStat = await fsPromises.stat(destFilePath);
 
     const areDirs = srcFileStat.isDirectory() && destFileStat.isDirectory();
     dirsInDest[file] = destFileStat.isDirectory();
@@ -110,22 +112,24 @@ export const copyDirSafe = async (
   // console.log('filesToRemove', filesToRemove)
   // console.log('filesToReplace', filesToReplace)
 
-  // first remove files
   await Promise.all(
     filesToRemove
       .filter((file) => !dirsInDest[file])
-      .map((file) => fs.remove(resolve(destDir, file))),
+      .map((file) =>
+        fsPromises.rm(resolve(destDir, file), { recursive: true, force: true }),
+      ),
   );
-  // then empty directories
   await Promise.all(
     filesToRemove
       .filter((file) => dirsInDest[file])
-      .map((file) => fs.remove(resolve(destDir, file))),
+      .map((file) =>
+        fsPromises.rm(resolve(destDir, file), { recursive: true, force: true }),
+      ),
   );
 
   const newFilesDirs = await Promise.all(
     newFiles.map((file) =>
-      fs.stat(resolve(srcDir, file)).then((stat) => stat.isDirectory()),
+      fsPromises.stat(resolve(srcDir, file)).then((stat) => stat.isDirectory()),
     ),
   );
 
@@ -133,6 +137,10 @@ export const copyDirSafe = async (
     newFiles
       .filter((file, index) => !newFilesDirs[index])
       .concat(filesToReplace)
-      .map((file) => fs.copy(resolve(srcDir, file), resolve(destDir, file))),
+      .map((file) =>
+        fsPromises.cp(resolve(srcDir, file), resolve(destDir, file), {
+          recursive: true,
+        }),
+      ),
   );
 };

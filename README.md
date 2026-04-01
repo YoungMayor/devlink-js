@@ -1,5 +1,8 @@
 # Devlink
 
+> [!NOTE]
+> This is a modernized fork of the original [whitecolor/yalc](https://github.com/whitecolor/yalc) package, renamed and maintained as `@mayrlabs/devlink`.
+>
 > Better workflow than **npm | yarn link** for package authors.
 
 ## Why
@@ -21,13 +24,13 @@ When developing and authoring multiple packages (private or public), you often f
 
 Using NPM:
 
-```
+```bash
 npm i devlink -g
 ```
 
 Using Yarn:
 
-```
+```bash
 yarn global add devlink
 ```
 

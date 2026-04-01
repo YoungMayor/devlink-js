@@ -2,7 +2,7 @@ import { defineConfig } from 'tsdown';
 
 export default defineConfig({
   entry: ['src/index.ts', 'src/devlink.ts'],
-  format: 'cjs',
+  format: 'esm',
   outDir: 'dist',
   clean: true,
   dts: true,

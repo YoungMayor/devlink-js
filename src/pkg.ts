@@ -1,7 +1,7 @@
+import * as fs from 'node:fs';
 import { join } from 'node:path';
 import detectIndent from 'detect-indent';
-import * as fs from 'fs-extra';
-import type { PackageName } from './installations';
+import type { PackageName } from './installations.js';
 
 export type PackageScripts = Partial<{
   preinstall: string;
@@ -28,11 +28,7 @@ export interface PackageManifest {
   dependencies?: { [name: string]: string };
   devDependencies?: { [name: string]: string };
   peerDependencies?: { [name: string]: string };
-  devlink: Partial<{
-    sig: boolean;
-    signature: boolean;
-    noSig: boolean;
-  }>;
+  devlink: Partial<{ sig: boolean; signature: boolean; noSig: boolean }>;
   workspaces?: string[];
   scripts?: PackageScripts;
   __Indent?: string;
@@ -40,18 +36,15 @@ export interface PackageManifest {
 
 export const parsePackageName = (packageName: string) => {
   const match = packageName.match(/(^@[^/]+\/)?([^@]+)@?(.*)/) || [];
-  if (!match) {
-    return { name: '' as PackageName, version: '' };
-  }
+  if (!match) return { name: '' as PackageName, version: '' };
+
   return {
     name: ((match[1] || '') + match[2]) as PackageName,
     version: match[3] || '',
   };
 };
 
-const getIndent = (jsonStr: string) => {
-  return detectIndent(jsonStr).indent;
-};
+const getIndent = (jsonStr: string) => detectIndent(jsonStr).indent;
 
 export function readPackageManifest(workingDir: string) {
   let pkg: PackageManifest;
@@ -59,6 +52,7 @@ export function readPackageManifest(workingDir: string) {
   try {
     const fileData = fs.readFileSync(packagePath, 'utf-8');
     pkg = JSON.parse(fileData) as PackageManifest;
+
     if (!pkg.name && pkg.version) {
       console.log(
         'Package manifest',
@@ -67,8 +61,10 @@ export function readPackageManifest(workingDir: string) {
       );
       return null;
     }
+
     const indent = getIndent(fileData) || '  ';
     pkg.__Indent = indent;
+
     return pkg;
   } catch (e) {
     console.error('Could not read', packagePath);
@@ -85,17 +81,23 @@ const sortDependencies = (dependencies: { [name: string]: string }) => {
     );
 };
 
-export function writePackageManifest(workingDir: string, pkg: PackageManifest) {
-  pkg = Object.assign({}, pkg);
-  if (pkg.dependencies) {
-    pkg.dependencies = sortDependencies(pkg.dependencies);
-  }
+export function writePackageManifest(
+  workingDir: string,
+  pkgManifest: PackageManifest,
+) {
+  const pkg = { ...pkgManifest };
+
+  if (pkg.dependencies) pkg.dependencies = sortDependencies(pkg.dependencies);
+
   if (pkg.devDependencies) {
     pkg.devDependencies = sortDependencies(pkg.devDependencies);
   }
+
   const indent = pkg.__Indent;
   pkg.__Indent = undefined;
+
   const packagePath = join(workingDir, 'package.json');
+
   try {
     fs.writeFileSync(packagePath, `${JSON.stringify(pkg, null, indent)}\n`);
   } catch (e) {

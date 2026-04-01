@@ -1,7 +1,6 @@
-import { execSync } from "node:child_process";
-import { join, relative } from "node:path";
-import * as fs from "fs-extra";
-
+import { execSync } from 'node:child_process';
+import * as fs from 'node:fs';
+import { join, relative } from 'node:path';
 import {
   execLoudOptions,
   getPackageStoreDir,
@@ -11,14 +10,30 @@ import {
   runPmUpdate,
   values,
   writePackageManifest,
-} from ".";
-import { addInstallations } from "./installations";
-import { addPackageToLockfile } from "./lockfile";
-import type { PackageScripts } from "./pkg";
-import { getPackageManager, pmRunScriptCmd } from "./pm";
-import { copyDirSafe } from "./sync-dir";
+} from './index.js';
+import { addInstallations } from './installations.js';
+import { addPackageToLockfile } from './lockfile.js';
+import type { PackageScripts } from './pkg.js';
+import { getPackageManager, pmRunScriptCmd } from './pm.js';
+import { copyDirSafe } from './sync-dir.js';
 
-const ensureSymlinkSync = fs.ensureSymlinkSync as typeof fs.symlinkSync;
+const ensureSymlinkSync = (
+  src: string,
+  dest: string,
+  type?: fs.symlink.Type,
+) => {
+  const dir = join(dest, '..');
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+
+  try {
+    fs.symlinkSync(src, dest, type);
+  } catch (e: unknown) {
+    if (e && typeof e === 'object' && 'code' in e && e.code === 'EEXIST') {
+      fs.rmSync(dest, { recursive: true, force: true });
+      fs.symlinkSync(src, dest, type);
+    } else throw e;
+  }
+};
 
 export interface AddPackagesOptions {
   dev?: boolean;
@@ -45,7 +60,7 @@ const getLatestPackageVersion = (packageName: string) => {
       (a: { created: number }, b: { created: number }) => b.created - a.created,
     )
     .map((x: { version: string }) => x.version)[0];
-  return latest || "";
+  return latest || '';
 };
 
 const isSymlink = (path: string) => {
@@ -57,7 +72,7 @@ const isSymlink = (path: string) => {
 };
 
 const checkPnpmWorkspace = (workingDir: string) => {
-  return fs.existsSync(join(workingDir, "pnpm-workspace.yaml"));
+  return fs.existsSync(join(workingDir, 'pnpm-workspace.yaml'));
 };
 
 export const addPackages = async (
@@ -65,18 +80,21 @@ export const addPackages = async (
   options: AddPackagesOptions,
 ) => {
   if (!packages.length) return;
+
   const workingDir = options.workingDir;
   const localPkg = readPackageManifest(workingDir);
   let localPkgUpdated = false;
-  if (!localPkg) {
-    return;
-  }
+
+  if (!localPkg) return;
+
   const pm = getPackageManager(workingDir);
 
   const runPmScript = (script: string) => {
     const scriptCmd = localPkg.scripts?.[script as keyof PackageScripts];
+
     if (scriptCmd) {
       console.log(`Running ${script} script: ${scriptCmd}`);
+
       execSync(`${pmRunScriptCmd[pm]} ${script}`, {
         cwd: workingDir,
         ...execLoudOptions,
@@ -86,22 +104,22 @@ export const addPackages = async (
 
   let pnpmWorkspace = false;
 
+  pnpmWorkspace = checkPnpmWorkspace(workingDir);
+
   const doPure =
     options.pure === false
       ? false
-      : options.pure ||
-        !!localPkg.workspaces ||
-        (pnpmWorkspace = checkPnpmWorkspace(workingDir));
+      : options.pure || !!localPkg.workspaces || pnpmWorkspace;
 
-  runPmScript("predevlink");
+  runPmScript('predevlink');
 
   const addedInstallsP = packages.map(async (packageName) => {
     runPmScript(`predevlink.${packageName}`);
-    const { name, version = "" } = parsePackageName(packageName);
 
-    if (!name) {
-      console.warn("Could not parse package name", packageName);
-    }
+    const { name, version = '' } = parsePackageName(packageName);
+
+    if (!name) console.warn('Could not parse package name', packageName);
+
     const destDevlinkCopyDir = join(
       workingDir,
       values.devlinkPackagesFolder,
@@ -110,12 +128,15 @@ export const addPackages = async (
 
     if (!options.restore) {
       const storedPackagePath = getPackageStoreDir(name);
+
       if (!fs.existsSync(storedPackagePath)) {
         console.warn(
           `Could not find package \`${name}\` in store (${storedPackagePath}), skipping.`,
         );
+
         return null;
       }
+
       const versionToInstall = version || getLatestPackageVersion(name);
 
       const storedPackageDir = getPackageStoreDir(name, versionToInstall);
@@ -123,8 +144,9 @@ export const addPackages = async (
       if (!fs.existsSync(storedPackageDir)) {
         console.warn(
           `Could not find package \`${packageName}\` ${storedPackageDir}`,
-          ", skipping.",
+          ', skipping.',
         );
+
         return null;
       }
 
@@ -136,22 +158,23 @@ export const addPackages = async (
       if (!fs.existsSync(destDevlinkCopyDir)) {
         console.warn(
           `Could not find package \`${packageName}\` ${destDevlinkCopyDir}`,
-          ", skipping.",
+          ', skipping.',
         );
+
         return null;
       }
     }
 
     const pkg = readPackageManifest(destDevlinkCopyDir);
-    if (!pkg) {
-      return null;
-    }
 
-    let replacedVersion = "";
+    if (!pkg) return null;
+
+    let replacedVersion = '';
+
     if (doPure) {
       if (!options.pure) {
         const defaultPureMsg =
-          "--pure option will be used by default, to override use --no-pure.";
+          '--pure option will be used by default, to override use --no-pure.';
         if (localPkg.workspaces) {
           console.warn(
             `Because of \`workspaces\` enabled in this package ${defaultPureMsg}`,
@@ -169,22 +192,27 @@ export const addPackages = async (
         )} purely`,
       );
     }
+
     if (!doPure) {
-      const destModulesDir = join(workingDir, "node_modules", name);
+      const destModulesDir = join(workingDir, 'node_modules', name);
+
       if (options.link || options.linkDep || isSymlink(destModulesDir)) {
-        fs.removeSync(destModulesDir);
+        if (fs.existsSync(destModulesDir)) {
+          fs.rmSync(destModulesDir, { recursive: true, force: true });
+        }
       }
 
       if (options.link || options.linkDep) {
-        ensureSymlinkSync(destDevlinkCopyDir, destModulesDir, "junction");
+        ensureSymlinkSync(destDevlinkCopyDir, destModulesDir, 'junction');
       } else {
         await copyDirSafe(destDevlinkCopyDir, destModulesDir, !options.replace);
       }
 
       if (!options.link) {
-        const protocol = options.linkDep ? "link:" : "file:";
+        const protocol = options.linkDep ? 'link:' : 'file:';
+
         const localAddress = options.workspace
-          ? "workspace:*"
+          ? 'workspace:*'
           : `${protocol + values.devlinkPackagesFolder}/${pkg.name}`;
 
         const dependencies = localPkg.dependencies || {};
@@ -206,57 +234,70 @@ export const addPackages = async (
 
         if (depsObj[pkg.name] !== localAddress) {
           replacedVersion = replacedVersion || depsObj[pkg.name];
+
           depsObj[pkg.name] = localAddress;
+
           localPkg.dependencies =
             depsObj === dependencies ? dependencies : localPkg.dependencies;
+
           localPkg.devDependencies =
             depsObj === devDependencies
               ? devDependencies
               : localPkg.devDependencies;
+
           localPkgUpdated = true;
         }
+
         replacedVersion =
-          replacedVersion === localAddress ? "" : replacedVersion;
+          replacedVersion === localAddress ? '' : replacedVersion;
       }
 
       if (pkg.bin && (options.link || options.linkDep)) {
-        const binDir = join(workingDir, "node_modules", ".bin");
+        const binDir = join(workingDir, 'node_modules', '.bin');
+
         const addBinScript = (src: string, dest: string) => {
           const srcPath = join(destDevlinkCopyDir, src);
           const destPath = join(binDir, dest);
           console.log(
-            "Linking bin script:",
+            'Linking bin script:',
             relative(workingDir, destDevlinkCopyDir),
-            "->",
+            '->',
             relative(workingDir, destPath),
           );
+
           try {
             ensureSymlinkSync(srcPath, destPath);
             fs.chmodSync(srcPath, 0o755);
           } catch (e) {
-            console.warn("Could not create bin symlink.");
+            console.warn('Could not create bin symlink.');
             console.error(e);
           }
         };
-        if (typeof pkg.bin === "string") {
-          fs.ensureDirSync(binDir);
+
+        if (typeof pkg.bin === 'string') {
+          fs.mkdirSync(binDir, { recursive: true });
+
           addBinScript(pkg.bin, pkg.name);
-        } else if (typeof pkg.bin === "object") {
-          fs.ensureDirSync(binDir);
+        } else if (typeof pkg.bin === 'object') {
+          fs.mkdirSync(binDir, { recursive: true });
+
           for (const name in pkg.bin) {
             addBinScript(pkg.bin[name], name);
           }
         }
       }
 
-      const addedAction = options.link ? "linked" : "added";
+      const addedAction = options.link ? 'linked' : 'added';
+
       console.log(
         `Package ${pkg.name}@${pkg.version} ${addedAction} ==> ${destModulesDir}`,
       );
     }
 
     const signature = readSignatureFile(destDevlinkCopyDir);
+
     runPmScript(`postdevlink.${packageName}`);
+
     return {
       signature,
       name,
@@ -266,13 +307,12 @@ export const addPackages = async (
     };
   });
 
-  const addedInstalls = (await Promise.all(addedInstallsP))
-    .filter((_) => !!_)
-    .map((_) => _!);
+  const addedInstalls = (await Promise.all(addedInstallsP)).filter(
+    (item): item is NonNullable<typeof item> => item !== null,
+  );
 
-  if (localPkgUpdated) {
-    writePackageManifest(workingDir, localPkg);
-  }
+  if (localPkgUpdated) writePackageManifest(workingDir, localPkg);
+
   addPackageToLockfile(
     addedInstalls.map((i) => ({
       name: i.name,
@@ -289,10 +329,9 @@ export const addPackages = async (
     { workingDir: options.workingDir },
   );
 
-  runPmScript("postdevlink");
+  runPmScript('postdevlink');
 
   await addInstallations(addedInstalls);
-  if (options.update) {
-    runPmUpdate(options.workingDir, packages);
-  }
+
+  if (options.update) runPmUpdate(options.workingDir, packages);
 };

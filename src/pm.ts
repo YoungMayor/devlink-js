@@ -1,7 +1,7 @@
 import { ExecSyncOptions, execSync } from 'node:child_process';
+import * as fs from 'node:fs';
 import { join } from 'node:path';
-import * as fs from 'fs-extra';
-import { execLoudOptions } from '.';
+import { execLoudOptions } from './index.js';
 
 type PackageMangerName = 'yarn' | 'npm' | 'pnpm';
 

@@ -1,0 +1,3 @@
+export const preCommit = `
+pnpm exec lint-staged
+`

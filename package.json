@@ -1,6 +1,6 @@
 {
   "name": "@mayrlabs/devlink",
-  "version": "0.0.1",
+  "version": "0.0.0",
   "description": "Work with npm/pnpm/yarn packages locally like a boss.",
   "author": {
     "name": "Aghogho Meyorn",
@@ -13,23 +13,23 @@
     "url": "https://github.com/YoungMayor/devlink-js.git"
   },
   "bin": {
-    "devlink": "dist/devlink.js",
-    "lpm": "dist/devlink.js"
+    "devlink": "dist/devlink.mjs",
+    "lpm": "dist/devlink.mjs"
   },
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
+  "main": "dist/index.mjs",
+  "types": "dist/index.d.mts",
   "type": "module",
   "scripts": {
     "build": "tsdown",
     "prepublishOnly": "pnpm build && pnpm test",
     "test": "mocha test",
     "lint": "biome check .",
-    "format": "biome format --write ."
+    "format": "biome format --write .",
+    "prepare": "husky"
   },
   "dependencies": {
     "chalk": "^4.1.0",
     "detect-indent": "^6.0.0",
-    "fs-extra": "^11.3.4",
     "glob": "^7.1.4",
     "ignore": "^5.0.4",
     "ini": "^2.0.0",
@@ -38,16 +38,22 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^1.6.4",
-    "@types/fs-extra": "^11.0.4",
+    "@changesets/cli": "^2.30.0",
     "@types/glob": "^7.2.0",
+    "@types/ini": "^4.1.1",
     "@types/mocha": "^10.0.6",
     "@types/node": "^20.12.7",
     "@types/npm-packlist": "^3.0.0",
     "@types/yargs": "^17.0.32",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0",
     "mocha": "^10.4.0",
     "ts-node": "^10.9.2",
     "tsdown": "latest",
     "typescript": "^5.4.5"
   },
-  "license": "MIT"
+  "license": "MIT",
+  "lint-staged": {
+    "*.{ts,json,md}": ["biome check --apply --no-errors-on-unmatched"]
+  }
 }

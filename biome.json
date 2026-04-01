@@ -1,8 +1,5 @@
 {
-  "$schema": "https://biomejs.dev/schemas/1.6.4/schema.json",
-  "files": {
-    "ignore": ["dist/**"]
-  },
+  "$schema": "https://biomejs.dev/schemas/1.9.4/schema.json",
   "organizeImports": {
     "enabled": true
   },
@@ -10,9 +7,19 @@
     "enabled": true,
     "rules": {
       "recommended": true,
+      "style": {
+        "useImportType": "error",
+        "noNonNullAssertion": "error",
+        "noParameterAssign": "error"
+      },
+      "complexity": {
+        "noForEach": "error"
+      },
+      "performance": {
+        "noAccumulatingSpread": "error"
+      },
       "suspicious": {
-        "noExplicitAny": "off",
-        "noConsoleLog": "off"
+        "noExplicitAny": "off"
       }
     }
   },
@@ -21,7 +28,6 @@
     "formatWithErrors": false,
     "indentStyle": "space",
     "indentWidth": 2,
-    "lineEnding": "lf",
     "lineWidth": 80,
     "attributePosition": "auto"
   },
@@ -29,9 +35,21 @@
     "formatter": {
       "quoteStyle": "single",
       "jsxQuoteStyle": "double",
-      "trailingComma": "all",
+      "trailingCommas": "all",
       "semicolons": "always",
       "arrowParentheses": "always"
     }
-  }
+  },
+  "overrides": [
+    {
+      "include": ["test/**/*.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noNonNullAssertion": "off"
+          }
+        }
+      }
+    }
+  ]
 }

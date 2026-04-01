@@ -1,7 +1,10 @@
-import { addPackages, parsePackageName } from '.';
-import type { AddPackagesOptions } from './add';
-import { type PackageInstallation, removeInstallations } from './installations';
-import { readLockfile } from './lockfile';
+import type { AddPackagesOptions } from './add.js';
+import { addPackages, parsePackageName } from './index.js';
+import {
+  type PackageInstallation,
+  removeInstallations,
+} from './installations.js';
+import { readLockfile } from './lockfile.js';
 
 export interface UpdatePackagesOptions {
   workingDir: string;
@@ -22,7 +25,7 @@ export const updatePackages = async (
   let packagesToUpdate: string[] = [];
   const installationsToRemove: PackageInstallation[] = [];
   if (packages.length) {
-    packages.forEach((packageName) => {
+    for (const packageName of packages) {
       const { name, version } = parsePackageName(packageName);
       if (lockfile.packages[name]) {
         if (version) {
@@ -35,7 +38,7 @@ export const updatePackages = async (
           `Did not find package ${name} in lockfile, please use 'add' command to add it explicitly.`,
         );
       }
-    });
+    }
   } else {
     packagesToUpdate = Object.keys(lockfile.packages);
   }

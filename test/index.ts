@@ -1,6 +1,7 @@
 import { deepEqual, doesNotThrow, ok, strictEqual, throws } from 'node:assert';
-import { join } from 'node:path';
-import * as fs from 'fs-extra';
+import * as fs from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   addPackages,
   devlinkGlobal,
@@ -8,11 +9,13 @@ import {
   readPackageManifest,
   removePackages,
   updatePackages,
-} from '../src';
+} from '../src/index.js';
 
-import { readInstallationsFile } from '../src/installations';
+import { readInstallationsFile } from '../src/installations.js';
 
-import { type LockFileConfigV1, readLockfile } from '../src/lockfile';
+import { type LockFileConfigV1, readLockfile } from '../src/lockfile.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const values = {
   depPackage: 'dep-package',
@@ -101,8 +104,8 @@ const extractSignature = (lockfile: LockFileConfigV1, packageName: string) => {
 describe('Devlink package manager', function () {
   this.timeout(60000);
   before(() => {
-    fs.removeSync(tmpDir);
-    fs.copySync(fixtureDir, tmpDir);
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    fs.cpSync(fixtureDir, tmpDir, { recursive: true });
   });
   describe('Package publish', function () {
     this.timeout(5000);
@@ -316,7 +319,8 @@ describe('Devlink package manager', function () {
       'node_modules/file.txt',
     );
     before(() => {
-      fs.ensureFileSync(innerNodeModulesFile);
+      fs.mkdirSync(dirname(innerNodeModulesFile), { recursive: true });
+      fs.writeFileSync(innerNodeModulesFile, 'test');
       return updatePackages([values.depPackage], {
         workingDir: projectDir,
       });
@@ -437,7 +441,7 @@ describe('Devlink package manager', function () {
       deepEqual(installtions, {});
     });
     it('should remove package from .mayrlabs/devlink', () => {
-      checkNotExists(join(projectDir, '.ylc', values.depPackage));
+      checkNotExists(join(projectDir, '.mayrlabs/devlink', values.depPackage));
     });
 
     it('should remove package from node_modules', () => {

@@ -1,7 +1,7 @@
 import type { ExecSyncOptions } from 'node:child_process';
+import * as fs from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-import * as fs from 'fs-extra';
 
 const userHome = homedir();
 
@@ -21,20 +21,20 @@ export interface UpdatePackagesOptions {
   workingDir: string;
 }
 
-export { publishPackage } from './publish';
-export { updatePackages } from './update';
-export { checkManifest } from './check';
-export { removePackages } from './remove';
-export { addPackages } from './add';
-export * from './pkg';
-export * from './pm';
+export { publishPackage } from './publish.js';
+export { updatePackages } from './update.js';
+export { checkManifest } from './check.js';
+export { removePackages } from './remove.js';
+export { addPackages } from './add.js';
+export * from './pkg.js';
+export * from './pm.js';
 
 export interface DevlinkGlobal {
   devlinkStoreMainDir: string;
 }
-/* 
-  Not using Node.Global because in this case 
-  <reference types="mocha" /> is aded in built d.ts file  
+/*
+  Not using Node.Global because in this case
+  <reference types="mocha" /> is aded in built d.ts file
 */
 export const devlinkGlobal: DevlinkGlobal = global as any;
 
@@ -42,9 +42,11 @@ export function getStoreMainDir(): string {
   if (devlinkGlobal.devlinkStoreMainDir) {
     return devlinkGlobal.devlinkStoreMainDir;
   }
+
   if (process.platform === 'win32' && process.env.LOCALAPPDATA) {
     return join(process.env.LOCALAPPDATA, values.myNameIsCapitalized);
   }
+
   return join(userHome, '.mayrlabs', 'devlink');
 }
 
@@ -61,6 +63,7 @@ const signatureFileName = 'devlink.sig';
 
 export const readSignatureFile = (workingDir: string) => {
   const signatureFilePath = join(workingDir, signatureFileName);
+
   try {
     const fileData = fs.readFileSync(signatureFilePath, 'utf-8');
     return fileData;
@@ -71,6 +74,7 @@ export const readSignatureFile = (workingDir: string) => {
 
 export const readIgnoreFile = (workingDir: string) => {
   const filePath = join(workingDir, values.ignoreFileName);
+
   try {
     const fileData = fs.readFileSync(filePath, 'utf-8');
     return fileData;
