@@ -1,5 +1,11 @@
 # Devlink changelog
 
+## 0.0.1
+
+### Patch Changes
+
+- dda8828: Initial release
+
 ## 0.0.1 - Initial fork from yalc - Project restructured
 
 - Forked from yalc
