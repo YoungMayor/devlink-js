@@ -20,9 +20,8 @@ export function checkManifest(options: CheckOptions) {
       fs.readFileSync(manifestPath, 'utf-8'),
     ) as PackageManifest;
 
-    const addresMatch = new RegExp(
-      `^(file|link):(.\\/)?\\${values.devlinkPackagesFolder}\\/`,
-    );
+    const escapedFolder = values.devlinkPackagesFolder.replace(/\./g, '\\.');
+    const addresMatch = new RegExp(`^(file|link):(.\\/)?${escapedFolder}\\/`);
 
     const findDeps = (depsMap: { [name: string]: string }) =>
       Object.keys(depsMap).filter((name) => depsMap[name].match(addresMatch));

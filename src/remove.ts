@@ -22,9 +22,8 @@ export interface RemovePackagesOptions {
 }
 
 const isDevlinkFileAddress = (address: string, name: string) => {
-  const regExp = new RegExp(
-    `file|link:${values.devlinkPackagesFolder}/${name}`,
-  );
+  const escapedFolder = values.devlinkPackagesFolder.replace(/\./g, '\\.');
+  const regExp = new RegExp(`^(file|link):(.\\/)?${escapedFolder}\\/${name}$`);
   return regExp.test(address);
 };
 
