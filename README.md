@@ -13,7 +13,7 @@ When developing and authoring multiple packages (private or public), you often f
 
 - `devlink` acts as very simple local repository for your locally developed packages that you want to share across your local environment.
 - When you run `devlink publish` in the package directory, it grabs only files that should be published to NPM and _puts_ them in a special global store (located, for example, in `~/.mayrlabs/devlink`).
-- When you run `devlink add my-package` in your `project` it _pulls_ package content into `.mayrlabs/devlink` in the current folder and injects a `file:`/`link:` dependency into `package.json`. Alternatively, you may use `devlink link my-package` which will create a symlink to the package content in `node_modules` and will not touch `package.json` (like `npm/yarn link` does), or you even may use it with **Pnmp/Yarn/Npm workspaces**.
+- When you run `devlink add my-package` in your `project` it _pulls_ package content into `.mayrlabs/devlink` in the current folder and injects a `file:`/`link:` dependency into `package.json`. Alternatively, you may use `devlink link my-package` which will create a symlink to the package content in `node_modules` and will not touch `package.json` (like `npm/yarn link` does), or you even may use it with **Pnpm/Yarn/Npm workspaces**.
 - `devlink` creates a special `devlink.lock` file in your project (similar to `yarn.lock` and `package-lock.json`) that is used to ensure consistency while performing `devlink`'s routines.
 - `devlink` can be used with projects where `yarn` or `npm` package managers are used
   for managing `package.json` dependencies.
@@ -103,7 +103,7 @@ Some documented features might not have been published yet, see the [change log]
 
 - If you are using `devlink'ed` modules temporarily during development, first add `.mayrlabs/devlink` and `devlink.lock` to `.gitignore`.
 - Use `devlink link`, that won't touch `package.json`
-- If you use `devlink add` it will change `package.json`, and ads `file:`/`link:` dependencies, if you may want to use `devlink check` in the [precommit hook](https://github.com/typicode/husky) which will check package.json for `devlink'ed` dependencies and exits with an error if you forgot to remove them.
+- If you use `devlink add` it will change `package.json`, and adds `file:`/`link:` dependencies, if you may want to use `devlink check` in the [precommit hook](https://github.com/typicode/husky) which will check package.json for `devlink'ed` dependencies and exits with an error if you forgot to remove them.
 
 ### Keep it in git
 

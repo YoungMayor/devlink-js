@@ -68,7 +68,7 @@ const getPublishOptions = (
 };
 
 /* tslint:disable-next-line */
-yargs(process.argv.slice(2))
+await yargs(process.argv.slice(2))
   .usage(`${cliCommand} [command] [options] [package1 [package2...]]`)
   .coerce('store-folder', (folder: string) => {
     if (!devlinkGlobal.devlinkStoreMainDir) {
@@ -105,8 +105,8 @@ yargs(process.argv.slice(2))
         .alias('script', 'scripts')
         .boolean(['push'].concat(publishFlags));
     },
-    handler: (argv) => {
-      publishPackage(getPublishOptions(argv));
+    handler: async (argv) => {
+      await publishPackage(getPublishOptions(argv));
     },
   })
   .command({
@@ -124,8 +124,8 @@ yargs(process.argv.slice(2))
         .boolean(['safe'].concat(publishFlags))
         .option('replace', { describe: 'Force package content replacement' });
     },
-    handler: (argv) => {
-      publishPackage(getPublishOptions(argv, { push: true }));
+    handler: async (argv) => {
+      await publishPackage(getPublishOptions(argv, { push: true }));
     },
   })
   .command({
@@ -162,8 +162,8 @@ yargs(process.argv.slice(2))
         .default(rcArgs as any)
         .help(true);
     },
-    handler: (argv) => {
-      addPackages(argv._.slice(1) as string[], {
+    handler: async (argv) => {
+      await addPackages(argv._.slice(1) as string[], {
         dev: !!argv.dev,
         linkDep: !!argv.link,
         restore: !!argv.restore,
@@ -178,8 +178,8 @@ yargs(process.argv.slice(2))
     command: 'link',
     describe: 'Link package from devlink repo to the project',
     builder: (y) => y.default(rcArgs as any).help(true),
-    handler: (argv) => {
-      addPackages(argv._.slice(1) as string[], {
+    handler: async (argv) => {
+      await addPackages(argv._.slice(1) as string[], {
         link: true,
         pure: !!argv.pure,
         workingDir: process.cwd(),
@@ -195,8 +195,8 @@ yargs(process.argv.slice(2))
         .default(rcArgs as any)
         .help(true);
     },
-    handler: (argv) => {
-      updatePackages(argv._.slice(1) as string[], {
+    handler: async (argv) => {
+      await updatePackages(argv._.slice(1) as string[], {
         update: !!(argv.update || argv.upgrade),
         restore: !!argv.restore,
         workingDir: process.cwd(),
@@ -212,8 +212,8 @@ yargs(process.argv.slice(2))
         .default(rcArgs as any)
         .help(true);
     },
-    handler: (argv) => {
-      updatePackages(argv._.slice(1) as string[], {
+    handler: async (argv) => {
+      await updatePackages(argv._.slice(1) as string[], {
         update: !!(argv.update || argv.upgrade),
         restore: true,
         workingDir: process.cwd(),
@@ -229,8 +229,8 @@ yargs(process.argv.slice(2))
         .default(rcArgs as any)
         .help(true);
     },
-    handler: (argv) => {
-      removePackages(argv._.slice(1) as string[], {
+    handler: async (argv) => {
+      await removePackages(argv._.slice(1) as string[], {
         retreat: !!argv.retreat,
         workingDir: process.cwd(),
         all: !!argv.all,
@@ -242,8 +242,8 @@ yargs(process.argv.slice(2))
     describe:
       'Remove packages from project, but leave in lock file (to be restored later)',
     builder: (y) => y.boolean(['all']).help(true),
-    handler: (argv) => {
-      removePackages(argv._.slice(1) as string[], {
+    handler: async (argv) => {
+      await removePackages(argv._.slice(1) as string[], {
         all: !!argv.all,
         retreat: true,
         workingDir: process.cwd(),
@@ -256,7 +256,7 @@ yargs(process.argv.slice(2))
     builder: (y) => {
       return y.boolean(['commit']).usage('check usage here').help(true);
     },
-    handler: (argv) => {
+    handler: async (argv) => {
       const gitParams = process.env.GIT_PARAMS;
       if (argv.commit) console.log('gitParams', gitParams);
 
