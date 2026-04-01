@@ -57,5 +57,8 @@
   "license": "MIT",
   "lint-staged": {
     "*.{ts,json,md}": ["biome check --apply --no-errors-on-unmatched"]
+  },
+  "publishConfig": {
+    "access": "public"
   }
 }
