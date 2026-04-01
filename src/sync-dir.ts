@@ -108,10 +108,6 @@ export const copyDirSafe = async (
     }
   }
 
-  // console.log('newFiles', newFiles)
-  // console.log('filesToRemove', filesToRemove)
-  // console.log('filesToReplace', filesToReplace)
-
   await Promise.all(
     filesToRemove
       .filter((file) => !dirsInDest[file])

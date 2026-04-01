@@ -1,5 +1,4 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import * as ini from 'ini';
 import { validFlags, values } from './constants.js';
 

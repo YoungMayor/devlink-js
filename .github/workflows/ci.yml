@@ -34,5 +34,4 @@ jobs:
           cache: "pnpm"
       - run: pnpm install
       - run: pnpm run build
-      # Need to fix tests before running them in CI
-      # - run: pnpm run test
+      - run: pnpm run test
