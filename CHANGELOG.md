@@ -1,4 +1,13 @@
-# Yalc changelog
+# Devlink changelog
+
+## 0.0.1 - Initial fork from yalc - Project restructured
+
+- Forked from yalc
+- Rebranded to @mayrlabs/devlink
+- Modernized build tooling (Biome, tsdown, pnpm)
+- Upgraded TypeScript and enabled strict mode
+
+# Legacy (from yalc fork)
 
 ## 1.0.0.pre.54 (Unreleased)
 

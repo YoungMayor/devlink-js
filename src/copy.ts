@@ -1,112 +1,108 @@
-import crypto from 'crypto'
-import fs from 'fs-extra'
-import ignore from 'ignore'
-import npmPacklist from 'npm-packlist'
-import { dirname, join } from 'path'
+import crypto from 'node:crypto';
+import { dirname, join } from 'node:path';
+import fs from 'fs-extra';
+import ignore from 'ignore';
+import npmPacklist from 'npm-packlist';
 
-import { readIgnoreFile, readPackageManifest, readSignatureFile } from '.'
+import { readIgnoreFile, readPackageManifest, readSignatureFile } from '.';
 import {
+  type PackageManifest,
   getStorePackagesDir,
-  PackageManifest,
   writePackageManifest,
   writeSignatureFile,
-} from '.'
+} from '.';
 
-const shortSignatureLength = 8
+const shortSignatureLength = 8;
 
-export const getFileHash = (srcPath: string, relPath: string = '') => {
+export const getFileHash = (srcPath: string, relPath = '') => {
   return new Promise<string>(async (resolve, reject) => {
-    const stream = fs.createReadStream(srcPath)
-    const md5sum = crypto.createHash('md5')
-    md5sum.update(relPath.replace(/\\/g, '/'))
-    stream.on('data', (data: string) => md5sum.update(data))
+    const stream = fs.createReadStream(srcPath);
+    const md5sum = crypto.createHash('md5');
+    md5sum.update(relPath.replace(/\\/g, '/'));
+    stream.on('data', (data: Buffer | string) => md5sum.update(data));
     stream.on('error', reject).on('close', () => {
-      resolve(md5sum.digest('hex'))
-    })
-  })
-}
+      resolve(md5sum.digest('hex'));
+    });
+  });
+};
 
-const copyFile = async (
-  srcPath: string,
-  destPath: string,
-  relPath: string = ''
-) => {
-  await fs.copy(srcPath, destPath)
-  return getFileHash(srcPath, relPath)
-}
+const copyFile = async (srcPath: string, destPath: string, relPath = '') => {
+  await fs.copy(srcPath, destPath);
+  return getFileHash(srcPath, relPath);
+};
 
 const mapObj = <T, R, K extends string>(
   obj: Record<K, T>,
-  mapValue: (value: T, key: K) => R
+  mapValue: (value: T, key: K) => R,
 ): Record<string, R> => {
-  if (Object.keys(obj).length === 0) return {}
+  if (Object.keys(obj).length === 0) return {};
 
   return Object.keys(obj).reduce<Record<string, R>>((resObj, key) => {
     if (obj[key as K]) {
-      resObj[key] = mapValue(obj[key as K], key as K)
+      resObj[key] = mapValue(obj[key as K], key as K);
     }
-    return resObj
-  }, {})
-}
+    return resObj;
+  }, {});
+};
 
 const resolveWorkspaceDepVersion = (
   version: string,
   pkgName: string,
-  workingDir: string
+  workingDir: string,
 ): string => {
   if (version !== '*' && version !== '^' && version !== '~') {
     // Regular semver specification
-    return version
+    return version;
   }
   // Resolve workspace version aliases
-  const prefix = version === '^' || version === '~' ? version : ''
+  const prefix = version === '^' || version === '~' ? version : '';
 
   try {
     const pkgPath = require.resolve(join(pkgName, 'package.json'), {
       paths: [workingDir],
-    })
+    });
     if (!pkgPath) {
     }
-    const resolved = readPackageManifest(dirname(pkgPath))?.version
+    const resolved = readPackageManifest(dirname(pkgPath))?.version;
 
-    return `${prefix}${resolved}` || '*'
+    return `${prefix}${resolved}` || '*';
   } catch (e) {
-    console.warn('Could not resolve workspace package location for', pkgName)
-    return '*'
+    console.warn('Could not resolve workspace package location for', pkgName);
+    return '*';
   }
-}
+};
 
 const resolveWorkspaces = (
   pkg: PackageManifest,
-  workingDir: string
+  workingDir: string,
 ): PackageManifest => {
   const resolveDeps = (deps: PackageManifest['dependencies']) => {
     return deps
       ? mapObj(deps, (val, depPkgName) => {
           if (val.startsWith('workspace:')) {
-            const version = val.split(':')[1]
+            const version = val.split(':')[1];
             const resolved = resolveWorkspaceDepVersion(
               version,
               depPkgName,
-              workingDir
-            )
+              workingDir,
+            );
             console.log(
-              `Resolving workspace package ${depPkgName} version ==> ${resolved}`
-            )
-            return resolved
+              `Resolving workspace package ${depPkgName} version ==> ${resolved}`,
+            );
+            return resolved;
           }
-          return val
+          return val;
         })
-      : deps
-  }
+      : deps;
+  };
 
   return {
     ...pkg,
     dependencies: resolveDeps(pkg.dependencies),
     devDependencies: resolveDeps(pkg.devDependencies),
     peerDependencies: resolveDeps(pkg.peerDependencies),
-  }
-}
+  };
+};
 
 const modPackageDev = (pkg: PackageManifest) => {
   return {
@@ -119,49 +115,49 @@ const modPackageDev = (pkg: PackageManifest) => {
         }
       : undefined,
     devDependencies: undefined,
-  }
-}
+  };
+};
 
-const fixScopedRelativeName = (path: string) => path.replace(/^\.\//, '')
+const fixScopedRelativeName = (path: string) => path.replace(/^\.\//, '');
 
 export const copyPackageToStore = async (options: {
-  workingDir: string
-  signature?: boolean
-  changed?: boolean
-  content?: boolean
-  devMod?: boolean
-  workspaceResolve?: boolean
+  workingDir: string;
+  signature?: boolean;
+  changed?: boolean;
+  content?: boolean;
+  devMod?: boolean;
+  workspaceResolve?: boolean;
 }): Promise<string | false> => {
-  const { workingDir, devMod = true } = options
-  const pkg = readPackageManifest(workingDir)
+  const { workingDir, devMod = true } = options;
+  const pkg = readPackageManifest(workingDir);
 
   if (!pkg) {
-    throw 'Error copying package to store.'
+    throw 'Error copying package to store.';
   }
-  const copyFromDir = options.workingDir
+  const copyFromDir = options.workingDir;
   const storePackageStoreDir = join(
     getStorePackagesDir(),
     pkg.name,
-    pkg.version
-  )
+    pkg.version,
+  );
 
-  const ignoreFileContent = readIgnoreFile(workingDir)
+  const ignoreFileContent = readIgnoreFile(workingDir);
 
-  const ignoreRule = ignore().add(ignoreFileContent)
+  const ignoreRule = ignore().add(ignoreFileContent);
   const npmList: string[] = await (await npmPacklist({ path: workingDir })).map(
-    fixScopedRelativeName
-  )
+    fixScopedRelativeName,
+  );
 
-  const filesToCopy = npmList.filter((f) => !ignoreRule.ignores(f))
+  const filesToCopy = npmList.filter((f) => !ignoreRule.ignores(f));
   if (options.content) {
-    console.info('Files included in published content:')
+    console.info('Files included in published content:');
     filesToCopy.sort().forEach((f) => {
-      console.log(`- ${f}`)
-    })
-    console.info(`Total ${filesToCopy.length} files.`)
+      console.log(`- ${f}`);
+    });
+    console.info(`Total ${filesToCopy.length} files.`);
   }
   const copyFilesToStore = async () => {
-    await fs.remove(storePackageStoreDir)
+    await fs.remove(storePackageStoreDir);
     return Promise.all(
       filesToCopy
         .sort()
@@ -169,46 +165,45 @@ export const copyPackageToStore = async (options: {
           copyFile(
             join(copyFromDir, relPath),
             join(storePackageStoreDir, relPath),
-            relPath
-          )
-        )
-    )
-  }
+            relPath,
+          ),
+        ),
+    );
+  };
   const hashes = options.changed
     ? await Promise.all(
         filesToCopy
           .sort()
-          .map((relPath) => getFileHash(join(copyFromDir, relPath), relPath))
+          .map((relPath) => getFileHash(join(copyFromDir, relPath), relPath)),
       )
-    : await copyFilesToStore()
+    : await copyFilesToStore();
 
   const signature = crypto
     .createHash('md5')
     .update(hashes.join(''))
-    .digest('hex')
+    .digest('hex');
 
   if (options.changed) {
-    const publishedSig = readSignatureFile(storePackageStoreDir)
+    const publishedSig = readSignatureFile(storePackageStoreDir);
     if (signature === publishedSig) {
-      return false
-    } else {
-      await copyFilesToStore()
+      return false;
     }
+    await copyFilesToStore();
   }
 
-  writeSignatureFile(storePackageStoreDir, signature)
+  writeSignatureFile(storePackageStoreDir, signature);
   const versionPre = options.signature
-    ? '+' + signature.substr(0, shortSignatureLength)
-    : ''
+    ? `+${signature.substr(0, shortSignatureLength)}`
+    : '';
 
   const resolveDeps = (pkg: PackageManifest): PackageManifest =>
-    options.workspaceResolve ? resolveWorkspaces(pkg, workingDir) : pkg
+    options.workspaceResolve ? resolveWorkspaces(pkg, workingDir) : pkg;
 
   const pkgToWrite: PackageManifest = {
     ...resolveDeps(devMod ? modPackageDev(pkg) : pkg),
-    yalcSig: signature,
+    devlinkSig: signature,
     version: pkg.version + versionPre,
-  }
-  writePackageManifest(storePackageStoreDir, pkgToWrite)
-  return signature
-}
+  };
+  writePackageManifest(storePackageStoreDir, pkgToWrite);
+  return signature;
+};

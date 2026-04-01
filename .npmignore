@@ -1,8 +1,1 @@
-*.ts
-!*.d.ts
-
-/test
-
-*.lock
-*.json
-*.yml
+*.md
