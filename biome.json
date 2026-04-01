@@ -4,7 +4,7 @@
     "enabled": true
   },
   "files": {
-    "ignore": ["dist"]
+    "ignore": ["dist", "test/tmp"]
   },
   "linter": {
     "enabled": true,

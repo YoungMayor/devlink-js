@@ -129,6 +129,15 @@ export const copyDirSafe = async (
     ),
   );
 
+  // Create new directories first to avoid ENOENT for nested files
+  await Promise.all(
+    newFiles
+      .filter((file, index) => newFilesDirs[index])
+      .map((file) =>
+        fsPromises.mkdir(resolve(destDir, file), { recursive: true }),
+      ),
+  );
+
   await Promise.all(
     newFiles
       .filter((file, index) => !newFilesDirs[index])
