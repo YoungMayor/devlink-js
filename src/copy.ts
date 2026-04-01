@@ -139,7 +139,7 @@ export const copyPackageToStore = async (options: {
   const { workingDir, devMod = true } = options;
   const pkg = readPackageManifest(workingDir);
 
-  if (!pkg) throw 'Error copying package to store.';
+  if (!pkg) throw new Error('Error copying package to store.');
 
   const copyFromDir = options.workingDir;
   const storePackageStoreDir = join(

@@ -1,1 +1,27 @@
+# Ignore documentation markdown files
 *.md
+
+# Ignore source code and tests (publish built artifacts only)
+src/
+test/
+tests/
+__tests__/
+fixtures/
+examples/
+
+# Ignore coverage and build reports
+coverage/
+.nyc_output/
+
+# Ignore editor and IDE settings
+.vscode/
+.idea/
+
+# Ignore logs and temporary files
+*.log
+*.tmp
+*.swp
+
+# Ignore common configuration directories that shouldn't be published
+config/
+configs/

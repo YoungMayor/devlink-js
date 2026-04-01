@@ -25,7 +25,8 @@
     "test": "mocha test",
     "lint": "biome check .",
     "format": "biome format --write .",
-    "prepare": "husky"
+    "prepare": "husky",
+    "release": "npx changeset publish --provenance"
   },
   "dependencies": {
     "chalk": "^4.1.0",
