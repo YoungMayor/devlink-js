@@ -1,68 +1,68 @@
-import { execSync, ExecSyncOptions } from 'child_process'
-import * as fs from 'fs-extra'
-import { join } from 'path'
-import { execLoudOptions } from '.'
+import { ExecSyncOptions, execSync } from 'node:child_process';
+import * as fs from 'node:fs';
+import { join } from 'node:path';
+import { execLoudOptions } from './index.js';
 
-type PackageMangerName = 'yarn' | 'npm' | 'pnpm'
+type PackageMangerName = 'yarn' | 'npm' | 'pnpm';
 
 export const pmMarkFiles: { [P in PackageMangerName]: string[] } = {
   pnpm: ['pnpm-lock.yaml'],
   yarn: ['yarn.lock'],
   npm: ['package-lock.json'],
-}
+};
 
 export const pmInstallCmd: { [P in PackageMangerName]: string } = {
   pnpm: 'pnpm install',
   yarn: 'yarn',
   npm: 'npm install',
-}
+};
 
 export const pmUpdateCmd: { [P in PackageMangerName]: string } = {
   pnpm: 'pnpm update',
   yarn: 'yarn upgrade',
   npm: 'npm update',
-}
+};
 
 export const pmRunScriptCmd: { [P in PackageMangerName]: string } = {
   pnpm: 'pnpm',
   yarn: 'yarn',
   npm: 'npm run',
-}
+};
 
-const defaultPm = 'npm'
+const defaultPm = 'npm';
 
 export const getPackageManager = (cwd: string): PackageMangerName => {
-  const pms = Object.keys(pmMarkFiles) as PackageMangerName[]
+  const pms = Object.keys(pmMarkFiles) as PackageMangerName[];
   return (
     pms.reduce<PackageMangerName | false>((found, pm) => {
       return (
         found ||
         (pmMarkFiles[pm].reduce<PackageMangerName | false>(
           (found, file) => found || (fs.existsSync(join(cwd, file)) && pm),
-          false
+          false,
         ) &&
           pm)
-      )
+      );
     }, false) || defaultPm
-  )
-}
+  );
+};
 
 export const getRunScriptCmd = (cwd: string) =>
-  pmInstallCmd[getPackageManager(cwd)]
+  pmInstallCmd[getPackageManager(cwd)];
 
 export const getPackageManagerInstallCmd = (cwd: string) =>
-  pmInstallCmd[getPackageManager(cwd)]
+  pmInstallCmd[getPackageManager(cwd)];
 
 export const getPackageManagerUpdateCmd = (cwd: string) =>
-  pmUpdateCmd[getPackageManager(cwd)]
+  pmUpdateCmd[getPackageManager(cwd)];
 
-export const isYarn = (cwd: string) => getPackageManager(cwd) === 'yarn'
+export const isYarn = (cwd: string) => getPackageManager(cwd) === 'yarn';
 
 export const runPmUpdate = (workingDir: string, packages: string[]) => {
   const pkgMgrCmd = [getPackageManagerUpdateCmd(workingDir), ...packages].join(
-    ' '
-  )
+    ' ',
+  );
 
-  console.log(`Running ${pkgMgrCmd} in ${workingDir}`)
-  execSync(pkgMgrCmd, { cwd: workingDir, ...execLoudOptions })
-}
+  console.log(`Running ${pkgMgrCmd} in ${workingDir}`);
+  execSync(pkgMgrCmd, { cwd: workingDir, ...execLoudOptions });
+};

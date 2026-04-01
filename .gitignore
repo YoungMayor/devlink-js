@@ -4,6 +4,9 @@ tmp
 *.js
 *.d.ts
 *.js.map
-/.yalc
-yalc.lock
+dist/
+/.mayrlabs/devlink
+devlink.lock
 *.log
+
+.env
