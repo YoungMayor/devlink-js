@@ -33,23 +33,43 @@ export function checkManifest(options: CheckOptions) {
     return localDeps;
   };
 
+  const manifestsToCheck: string[] = [];
+
   if (options.commit) {
-    execSync(stagedChangesCmd, { cwd: options.workingDir, ...execLoudOptions })
+    const stagedFiles = execSync(stagedChangesCmd, {
+      cwd: options.workingDir,
+      ...execLoudOptions,
+    })
       .toString()
       .trim();
 
-    execSync(stagedChangesCmd, { cwd: options.workingDir, ...execLoudOptions })
-      .toString()
-      .trim()
-      .split('\n')
-      .filter(isPackageManifest);
+    if (stagedFiles) {
+      manifestsToCheck.push(
+        ...stagedFiles
+          .split('\n')
+          .filter(isPackageManifest)
+          .map((f) => join(options.workingDir, f)),
+      );
+    }
+  } else {
+    manifestsToCheck.push(join(options.workingDir, 'package.json'));
   }
 
-  const manifestPath = join(options.workingDir, 'package.json');
-  const localDeps = findLocalDepsInManifest(manifestPath);
+  const allLocalDeps: string[] = [];
 
-  if (localDeps.length) {
-    console.info('Devlink dependencies found:', localDeps);
+  for (const manifestPath of manifestsToCheck) {
+    try {
+      if (fs.existsSync(manifestPath)) {
+        const localDeps = findLocalDepsInManifest(manifestPath);
+        allLocalDeps.push(...localDeps);
+      }
+    } catch (e) {
+      console.error(`Could not check manifest: ${manifestPath}`);
+    }
+  }
+
+  if (allLocalDeps.length) {
+    console.info('Devlink dependencies found:', [...new Set(allLocalDeps)]);
     process.exit(1);
   }
 }
