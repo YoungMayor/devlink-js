@@ -1,18 +1,9 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import * as ini from 'ini';
-import { values } from './index.js';
+import { validFlags, values } from './constants.js';
 
-const validFlags = [
-  'sig',
-  'workspace-resolve',
-  'dev-mod',
-  'scripts',
-  'quiet',
-  'files',
-];
-
-const fileName = '.mayrlabs/devlinkrc';
+const fileName = values.rcFileName;
 
 const readFile = (): Record<string, string | boolean> | null => {
   if (existsSync(fileName)) return ini.parse(readFileSync(fileName, 'utf-8'));
@@ -25,7 +16,7 @@ export const readRcConfig = (): Record<string, string | boolean> => {
   if (!rcOptions) return {};
 
   const unknown = Object.keys(rcOptions).filter(
-    (key) => !validFlags.includes(key),
+    (key) => !(validFlags as readonly string[]).includes(key),
   );
 
   if (unknown.length) {
@@ -35,7 +26,7 @@ export const readRcConfig = (): Record<string, string | boolean> => {
 
   return Object.keys(rcOptions).reduce<Record<string, string | boolean>>(
     (prev, flag) => {
-      if (validFlags.includes(flag)) {
+      if ((validFlags as readonly string[]).includes(flag)) {
         prev[flag] = rcOptions[flag];
       }
       return prev;

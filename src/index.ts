@@ -5,16 +5,9 @@ import { join } from 'node:path';
 
 const userHome = homedir();
 
-export const values = {
-  myNameIs: 'devlink',
-  ignoreFileName: '.mayrlabs/.devlinkignore',
-  myNameIsCapitalized: 'Devlink',
-  lockfileName: 'devlink.lock',
-  devlinkPackagesFolder: '.mayrlabs/devlink',
-  prescript: 'predevlink',
-  postscript: 'postdevlink',
-  installationsFile: 'installations.json',
-};
+import { values } from './constants.js';
+
+export { values };
 
 export interface UpdatePackagesOptions {
   safe?: boolean;

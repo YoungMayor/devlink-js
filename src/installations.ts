@@ -115,9 +115,9 @@ export const addInstallations = async (
   for (const newInstall of installations) {
     const packageInstallPaths = installationsConfig[newInstall.name] || [];
     installationsConfig[newInstall.name] = packageInstallPaths;
-    const hasInstallation = !!packageInstallPaths.filter(
+    const hasInstallation = packageInstallPaths.find(
       (p) => p === newInstall.path,
-    )[0];
+    );
     if (!hasInstallation) {
       updated = true;
       packageInstallPaths.push(newInstall?.path);

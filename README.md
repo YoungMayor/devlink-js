@@ -140,9 +140,9 @@ If you want to override default pure behavior use `--no-pure` flag.
 
 - Use `--quiet` to fully disable output (except of errors). Use `--no-colors` to disable colors.
 
-### Set default options via .mayrlabs/devlinkrc
+### Set default options via .mayrlabs/.devlinkrc
 
-- For example add `workspace-resolve=false` line to the `.mayrlabs/devlinkrc` file to turn off `workspace:` protocol resolution or `sig=false` to disable package version hash signature.
+- For example add `workspace-resolve=false` line to the `.mayrlabs/.devlinkrc` file to turn off `workspace:` protocol resolution or `sig=false` to disable package version hash signature.
 
 ## Related links
 
