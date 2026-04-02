@@ -36,11 +36,22 @@ export function getStoreMainDir(): string {
     return devlinkGlobal.devlinkStoreMainDir;
   }
 
+  const isDevStore =
+    process.argv[1]?.endsWith('devlinkdev') ||
+    process.argv[1]?.endsWith('lpmdev') ||
+    process.env.DEVLINK_DEV === 'true';
+
+  const storeBase = isDevStore ? 'devlink-dev' : 'devlink';
+
   if (process.platform === 'win32' && process.env.LOCALAPPDATA) {
-    return join(process.env.LOCALAPPDATA, values.myNameIsCapitalized);
+    return join(
+      process.env.LOCALAPPDATA,
+      values.myNameIsCapitalized,
+      storeBase,
+    );
   }
 
-  return join(userHome, '.mayrlabs', 'devlink');
+  return join(userHome, '.mayrlabs', storeBase);
 }
 
 export function getStorePackagesDir(): string {
@@ -59,17 +70,6 @@ export const readSignatureFile = (workingDir: string) => {
 
   try {
     const fileData = fs.readFileSync(signatureFilePath, 'utf-8');
-    return fileData;
-  } catch (e) {
-    return '';
-  }
-};
-
-export const readIgnoreFile = (workingDir: string) => {
-  const filePath = join(workingDir, values.ignoreFileName);
-
-  try {
-    const fileData = fs.readFileSync(filePath, 'utf-8');
     return fileData;
   } catch (e) {
     return '';

@@ -1,5 +1,6 @@
 import { exec, execSync } from 'node:child_process';
 import { join } from 'node:path';
+import chokidar from 'chokidar';
 
 import { copyPackageToStore } from './copy.js';
 import {
@@ -18,6 +19,7 @@ import {
   removeInstallations,
 } from './installations.js';
 import { pmRunScriptCmd } from './pm.js';
+import { updatePackageInStore } from './store.js';
 
 export interface PublishPackageOptions {
   workingDir: string;
@@ -108,6 +110,8 @@ export const publishPackage = async (options: PublishPackageOptions) => {
     `${publishedPkg.name}@${publishedPkg.version} published in store.`,
   );
 
+  updatePackageInStore(publishedPkg.name, publishedPkg.version);
+
   if (options.push) {
     const installationsConfig = readInstallationsFile();
     const installationPaths = installationsConfig[pkg.name] || [];
@@ -126,4 +130,30 @@ export const publishPackage = async (options: PublishPackageOptions) => {
     }
     await removeInstallations(installationsToRemove);
   }
+};
+
+export const publishPackageWatch = async (options: PublishPackageOptions) => {
+  const { workingDir } = options;
+  console.log(`Watching for changes in ${workingDir}...`);
+
+  await publishPackage(options);
+
+  const watcher = chokidar.watch(workingDir, {
+    ignored: [
+      '**/node_modules/**',
+      '**/.git/**',
+      join(workingDir, 'package.json'), // Avoid loop if version changes? Actually devlink doesn't change version in src usually.
+    ],
+    persistent: true,
+    ignoreInitial: true,
+  });
+
+  watcher.on('all', async (event, path) => {
+    console.log(`File ${path} ${event}, republishing...`);
+    try {
+      await publishPackage(options);
+    } catch (e) {
+      console.error('Error during republish:', e);
+    }
+  });
 };

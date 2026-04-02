@@ -3,13 +3,8 @@ import * as fs from 'node:fs';
 import * as fsPromises from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
-import ignore from 'ignore';
 import npmPacklist from 'npm-packlist';
-import {
-  readIgnoreFile,
-  readPackageManifest,
-  readSignatureFile,
-} from './index.js';
+import { readPackageManifest, readSignatureFile } from './index.js';
 import {
   type PackageManifest,
   getStorePackagesDir,
@@ -150,16 +145,9 @@ export const copyPackageToStore = async (options: {
     pkg.version,
   );
 
-  const ignoreFileContent = readIgnoreFile(workingDir);
-
-  const _ignore = (ignore as any).default || ignore;
-  const ignoreRule = _ignore().add(ignoreFileContent);
-
-  const npmList: string[] = await (await npmPacklist({ path: workingDir })).map(
-    fixScopedRelativeName,
-  );
-
-  const filesToCopy = npmList.filter((f) => !ignoreRule.ignores(f));
+  const filesToCopy: string[] = await (
+    await npmPacklist({ path: workingDir })
+  ).map(fixScopedRelativeName);
 
   if (options.content) {
     console.info('Files included in published content:');

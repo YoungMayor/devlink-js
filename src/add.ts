@@ -15,6 +15,7 @@ import { addInstallations } from './installations.js';
 import { addPackageToLockfile } from './lockfile.js';
 import type { PackageScripts } from './pkg.js';
 import { getPackageManager, pmRunScriptCmd } from './pm.js';
+import { incrementInstallation } from './store.js';
 import { copyDirSafe } from './sync-dir.js';
 
 const ensureSymlinkSync = (
@@ -151,6 +152,7 @@ export const addPackages = async (
       }
 
       await copyDirSafe(storedPackageDir, destDevlinkCopyDir, !options.replace);
+      incrementInstallation(name, versionToInstall);
     } else {
       console.log(
         `Restoring package \`${packageName}\` from .mayrlabs/devlink directory`,

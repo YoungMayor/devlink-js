@@ -104,3 +104,7 @@ export const updatePackages = async (
   }
   return installationsToRemove;
 };
+
+export const updateAllPackages = async (workingDir: string) => {
+  return updatePackages([], { workingDir, update: true });
+};
