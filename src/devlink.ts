@@ -2,7 +2,6 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import stringSimilarity from 'string-similarity';
 import yargs from 'yargs';
 import { checkManifest } from './check.js';
 import { disabledConsoleOutput, makeConsoleColored } from './console.js';
@@ -21,6 +20,7 @@ import { startInteractive } from './interactive.js';
 import { publishPackageWatch } from './publish.js';
 import type { PublishPackageOptions } from './publish.js';
 import { readRcConfig } from './rc.js';
+import { findBestMatch } from './suggest.js';
 import { updateAllPackages } from './update.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -316,17 +316,17 @@ if (process.argv.length <= 2) {
           if (argv.version) {
             console.log(getVersionMessage());
           } else {
-            console.log('Use `devlink help` to see available commands.');
+            console.log('Use `devlink --help` to see available commands.');
           }
           return;
         }
 
-        const matches = stringSimilarity.findBestMatch(inputCommand, commands);
+        const matches = findBestMatch(inputCommand, commands);
         let msg = `Unknown command \`${inputCommand}\`.`;
         if (matches.bestMatch.rating > 0.4) {
           msg += ` Did you mean \`${matches.bestMatch.target}\`?`;
         }
-        msg += ' Use `devlink help` to see available commands.';
+        msg += ' Use `devlink --help` to see available commands.';
         console.log(msg);
       },
     })

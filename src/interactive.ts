@@ -1,3 +1,4 @@
+import * as fs from 'node:fs';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -104,7 +105,11 @@ async function handleAdd() {
   if (isCancel(selectedPackage)) return;
 
   const pkgData = store.packages[selectedPackage as string];
-  const versions = Object.keys(pkgData.versions).sort().reverse();
+  const versions = Object.keys(pkgData.versions).sort((a, b) => {
+    const timeA = new Date(pkgData.versions[a].publishedAt).getTime();
+    const timeB = new Date(pkgData.versions[b].publishedAt).getTime();
+    return timeB - timeA;
+  });
 
   const selectedVersion = await select({
     message: `Select version for ${pc.cyan(selectedPackage as string)}:`,
@@ -228,6 +233,13 @@ async function handleStore() {
     if (vAction === 'delete') {
       const sure = await confirm({ message: 'Are you sure?' });
       if (sure) {
+        const pkgDir = getPackageStoreDir(
+          selectedPackage as string,
+          selectedVersion as string,
+        );
+        if (fs.existsSync(pkgDir)) {
+          fs.rmSync(pkgDir, { recursive: true, force: true });
+        }
         removePackageVersionFromStore(
           selectedPackage as string,
           selectedVersion as string,
@@ -247,7 +259,16 @@ async function handleStore() {
     });
     if (sure) {
       for (const v of versions) {
+        const pkgDir = getPackageStoreDir(selectedPackage as string, v);
+        if (fs.existsSync(pkgDir)) {
+          fs.rmSync(pkgDir, { recursive: true, force: true });
+        }
         removePackageVersionFromStore(selectedPackage as string, v);
+      }
+      // Also remove base dir
+      const basePkgDir = getPackageStoreDir(selectedPackage as string);
+      if (fs.existsSync(basePkgDir)) {
+        fs.rmSync(basePkgDir, { recursive: true, force: true });
       }
       note(`Deleted ${selectedPackage}`);
     }

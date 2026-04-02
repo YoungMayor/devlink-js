@@ -138,13 +138,36 @@ export const publishPackageWatch = async (options: PublishPackageOptions) => {
   const { workingDir } = options;
   console.log(`Watching for changes in ${workingDir}...`);
 
-  await publishPackage(options);
+  let isPublishing = false;
+  let pendingPublish = false;
+
+  const runPublish = async () => {
+    if (isPublishing) {
+      pendingPublish = true;
+      return;
+    }
+
+    isPublishing = true;
+    try {
+      await publishPackage(options);
+    } catch (e) {
+      console.error('Error during republish:', e);
+    } finally {
+      isPublishing = false;
+      if (pendingPublish) {
+        pendingPublish = false;
+        await runPublish();
+      }
+    }
+  };
+
+  await runPublish();
 
   const watcher = chokidar.watch(workingDir, {
     ignored: [
       '**/node_modules/**',
       '**/.git/**',
-      join(workingDir, 'package.json'), // Avoid loop if version changes? Actually devlink doesn't change version in src usually.
+      join(workingDir, 'package.json'),
     ],
     persistent: true,
     ignoreInitial: true,
@@ -152,10 +175,17 @@ export const publishPackageWatch = async (options: PublishPackageOptions) => {
 
   watcher.on('all', async (event, path) => {
     console.log(`File ${path} ${event}, republishing...`);
-    try {
-      await publishPackage(options);
-    } catch (e) {
-      console.error('Error during republish:', e);
-    }
+    await runPublish();
   });
+
+  const cleanup = async () => {
+    console.log('Closing watcher...');
+    await watcher.close();
+    process.exit(0);
+  };
+
+  process.on('SIGINT', cleanup);
+  process.on('SIGTERM', cleanup);
+
+  return watcher;
 };

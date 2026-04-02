@@ -29,6 +29,10 @@ export function gitIgnore(workingDir: string) {
   }
 }
 
+function escapeRegExp(string: string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); // $& means the whole matched string
+}
+
 export function gitShow(workingDir: string) {
   const gitignorePath = join(workingDir, '.gitignore');
   if (!fs.existsSync(gitignorePath)) return;
@@ -36,11 +40,10 @@ export function gitShow(workingDir: string) {
   let content = fs.readFileSync(gitignorePath, 'utf-8');
   let removed = false;
   for (const entry of IGNORE_ENTRIES) {
-    if (content.includes(entry)) {
-      content = content.replace(
-        new RegExp(`^${entry.replace(/\//g, '\\/')}\\n?`, 'm'),
-        '',
-      );
+    const escapedEntry = escapeRegExp(entry);
+    const regex = new RegExp(`^${escapedEntry}\\n?`, 'm');
+    if (regex.test(content)) {
+      content = content.replace(regex, '');
       removed = true;
     }
   }

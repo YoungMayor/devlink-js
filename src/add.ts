@@ -15,7 +15,7 @@ import { addInstallations } from './installations.js';
 import { addPackageToLockfile, readLockfile } from './lockfile.js';
 import type { PackageScripts } from './pkg.js';
 import { getPackageManager, pmRunScriptCmd } from './pm.js';
-import { incrementInstallation } from './store.js';
+import { decrementInstallation, incrementInstallation } from './store.js';
 import { copyDirSafe } from './sync-dir.js';
 
 const ensureSymlinkSync = (
@@ -154,7 +154,15 @@ export const addPackages = async (
       }
 
       await copyDirSafe(storedPackageDir, destDevlinkCopyDir, !options.replace);
-      incrementInstallation(name, versionToInstall);
+      const lockFileConfig = readLockfile({ workingDir });
+      const currentLocked = lockFileConfig.packages[name];
+
+      if (currentLocked?.version !== versionToInstall) {
+        if (currentLocked?.version) {
+          decrementInstallation(name, currentLocked.version);
+        }
+        incrementInstallation(name, versionToInstall);
+      }
     } else {
       const lockFileConfig = readLockfile({ workingDir });
       versionToInstall = lockFileConfig.packages[name]?.version || '';
