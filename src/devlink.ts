@@ -99,6 +99,13 @@ const commands = [
   'help',
 ];
 
+const isTTY = process.stdin.isTTY && process.stdout.isTTY;
+
+const shouldRunInteractive = (argv: any, positionalArgsCount = 0) => {
+  if (argv.interactive !== undefined) return !!argv.interactive;
+  return isTTY && argv._.length <= positionalArgsCount;
+};
+
 if (process.argv.length <= 2) {
   await startInteractive();
 } else {
@@ -107,6 +114,10 @@ if (process.argv.length <= 2) {
     .usage(`${cliCommand} [command] [options] [package1 [package2...]]`)
     .version(getVersionMessage())
     .alias('v', 'version')
+    .option('interactive', {
+      type: 'boolean',
+      describe: 'Run in interactive mode',
+    })
     .coerce('store-folder', (folder: string) => {
       if (!devlinkGlobal.devlinkStoreMainDir) {
         devlinkGlobal.devlinkStoreMainDir = resolve(folder);
@@ -131,16 +142,17 @@ if (process.argv.length <= 2) {
           .boolean(['push', 'watch'].concat(publishFlags));
       },
       handler: async (argv) => {
-        if (argv._.length <= 1) {
+        if (argv.watch) {
+          await publishPackageWatch(getPublishOptions(argv));
+          return;
+        }
+
+        if (shouldRunInteractive(argv, 1)) {
           await handlePublish();
           return;
         }
-        const options = getPublishOptions(argv);
-        if (argv.watch) {
-          await publishPackageWatch(options);
-        } else {
-          await publishPackage(options);
-        }
+
+        await publishPackage(getPublishOptions(argv));
       },
     })
     .command({
@@ -166,7 +178,7 @@ if (process.argv.length <= 2) {
       builder: (y) => y.boolean(['dry']),
       handler: async (argv) => {
         const action = argv._[1];
-        if (!action) {
+        if (shouldRunInteractive(argv, 1)) {
           await handleInstallations();
           return;
         }
@@ -209,12 +221,16 @@ if (process.argv.length <= 2) {
           argv.update ||
           argv.upgrade;
 
-        if (packages.length === 0) {
+        if (shouldRunInteractive(argv, 1) && !hasFlags) {
           await handleAdd();
           return;
         }
 
-        if (packages.length === 1 && !hasFlags) {
+        if (
+          packages.length === 1 &&
+          !hasFlags &&
+          shouldRunInteractive(argv, 2)
+        ) {
           await handleAdd(packages[0]);
           return;
         }
@@ -241,7 +257,7 @@ if (process.argv.length <= 2) {
       },
       handler: async (argv) => {
         const packages = argv._.slice(1) as string[];
-        if (packages.length === 0) {
+        if (packages.length === 0 && shouldRunInteractive(argv, 1)) {
           await handleUpdate();
           return;
         }
@@ -255,12 +271,9 @@ if (process.argv.length <= 2) {
     .command({
       command: 'update-all',
       describe: 'Update all devlinked packages to latest version',
-      handler: async () => {
-        if (process.argv.length <= 3) {
-          await handleUpdateAll();
-        } else {
-          await updateAllPackages(process.cwd());
-        }
+      handler: async (argv) => {
+        if (shouldRunInteractive(argv, 1)) await handleUpdateAll();
+        else await updateAllPackages(process.cwd());
       },
     })
     .command({
@@ -274,7 +287,7 @@ if (process.argv.length <= 2) {
       },
       handler: async (argv) => {
         const packages = argv._.slice(1) as string[];
-        if (packages.length === 0) {
+        if (packages.length === 0 && shouldRunInteractive(argv, 1)) {
           await handleRestore();
           return;
         }
@@ -296,7 +309,11 @@ if (process.argv.length <= 2) {
       },
       handler: async (argv) => {
         const packages = argv._.slice(1) as string[];
-        if (packages.length === 0 && !argv.all) {
+        if (
+          packages.length === 0 &&
+          !argv.all &&
+          shouldRunInteractive(argv, 1)
+        ) {
           await handleRemove();
           return;
         }
@@ -314,7 +331,11 @@ if (process.argv.length <= 2) {
       builder: (y) => y.boolean(['all']).help(true),
       handler: async (argv) => {
         const packages = argv._.slice(1) as string[];
-        if (packages.length === 0 && !argv.all) {
+        if (
+          packages.length === 0 &&
+          !argv.all &&
+          shouldRunInteractive(argv, 1)
+        ) {
           await handleRetreat();
           return;
         }

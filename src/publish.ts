@@ -138,11 +138,7 @@ export const publishPackageWatch = async (options: PublishPackageOptions) => {
   let isPublishing = false;
   let pendingPublish = false;
   let debounceTimeout: NodeJS.Timeout | null = null;
-
-  // Default to changed check in watch mode to skip redundant publishes
-  if (options.changed === undefined) {
-    options.changed = true;
-  }
+  const watchOptions = { ...options, changed: options.changed ?? true };
 
   const runPublish = async () => {
     if (isPublishing) {
@@ -152,7 +148,7 @@ export const publishPackageWatch = async (options: PublishPackageOptions) => {
 
     isPublishing = true;
     try {
-      await publishPackage(options);
+      await publishPackage(watchOptions);
     } catch (e) {
       console.error('Error during republish:', e);
     } finally {
@@ -167,28 +163,45 @@ export const publishPackageWatch = async (options: PublishPackageOptions) => {
   await runPublish();
 
   const watcher = chokidar.watch(workingDir, {
-    ignored: [
-      '**/node_modules/**',
-      '**/.git/**',
-      '**/dist/**',
-      '**/build/**',
-      '**/out/**',
-      '**/lib/**',
-      '**/target/**',
-      '**/vendor/**',
-      '**/.next/**',
-      '**/.nuxt/**',
-      '**/.output/**',
-      '**/package-lock.json',
-      '**/pnpm-lock.yaml',
-      '**/yarn.lock',
-      join(workingDir, 'package.json'),
-      join(workingDir, 'devlink.lock'),
-      join(workingDir, 'devlink.sig'),
-    ],
+    ignored: (path: string) => {
+      // Always allow the working directory itself
+      if (path === workingDir || path === `${workingDir}/`) return false;
+
+      const relativePath = path.startsWith(workingDir)
+        ? path.slice(workingDir.length).replace(/^[/\\]+/, '')
+        : path;
+
+      const ignorePatterns = [
+        /^node_modules[/\\]/,
+        /^\.git[/\\]/,
+        /^dist[/\\]/,
+        /^build[/\\]/,
+        /^out[/\\]/,
+        /^lib[/\\]/,
+        /^target[/\\]/,
+        /^vendor[/\\]/,
+        /^\.next[/\\]/,
+        /^\.nuxt[/\\]/,
+        /^\.output[/\\]/,
+        /^package-lock\.json$/,
+        /^pnpm-lock\.yaml$/,
+        /^yarn\.lock$/,
+        /^package\.json$/,
+        /^devlink\.lock$/,
+        /^devlink\.sig$/,
+      ];
+
+      return ignorePatterns.some((pattern) => pattern.test(relativePath));
+    },
     persistent: true,
     ignoreInitial: true,
   });
+
+  const originalClose = watcher.close.bind(watcher);
+  watcher.close = async () => {
+    if (debounceTimeout) clearTimeout(debounceTimeout);
+    return originalClose();
+  };
 
   watcher.on('all', async (event, path) => {
     if (debounceTimeout) clearTimeout(debounceTimeout);
@@ -200,7 +213,6 @@ export const publishPackageWatch = async (options: PublishPackageOptions) => {
 
   const cleanup = async () => {
     console.log('Closing watcher...');
-    if (debounceTimeout) clearTimeout(debounceTimeout);
     await watcher.close();
     process.exit(0);
   };

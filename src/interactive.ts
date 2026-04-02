@@ -138,6 +138,18 @@ export async function handleAdd(packageName?: string) {
 
     if (isCancel(version)) return;
     selectedVersion = version as string;
+  } else {
+    // Validate provided version
+    if (!pkgData.versions[selectedVersion]) {
+      note(
+        pc.red(
+          `Version ${selectedVersion} of ${selectedPackage} not found in store.\n` +
+            `Available versions: ${versions.join(', ')}`,
+        ),
+        'Error',
+      );
+      return;
+    }
   }
 
   const flags = await multiselect({
