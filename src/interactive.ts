@@ -1,9 +1,7 @@
 import * as fs from 'node:fs';
-import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  cancel,
   confirm,
   intro,
   isCancel,
@@ -33,7 +31,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 function getVersion() {
   const pkgPath = join(__dirname, '..', 'package.json');
   try {
-    const pkg = JSON.parse(readFileSync(pkgPath, 'utf-8'));
+    const pkg = JSON.parse(fs.readFileSync(pkgPath, 'utf-8'));
     return pkg.version;
   } catch {
     return 'unknown';
@@ -76,6 +74,7 @@ async function handlePublish() {
     push: usePush,
     scripts: true,
     devMod: true,
+    workspaceResolve: true,
   };
 
   if (useWatch) {

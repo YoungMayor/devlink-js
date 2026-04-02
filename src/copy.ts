@@ -113,11 +113,7 @@ const modPackageDev = (pkg: PackageManifest) => {
   return {
     ...pkg,
     scripts: pkg.scripts
-      ? {
-          ...pkg.scripts,
-          prepare: undefined,
-          prepublish: undefined,
-        }
+      ? { ...pkg.scripts, prepare: undefined, prepublish: undefined }
       : undefined,
     devDependencies: undefined,
   };

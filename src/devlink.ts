@@ -74,6 +74,7 @@ const getPublishOptions = (
 
 const commands = [
   'publish',
+  'publish:watch',
   'add',
   'installations',
   'update',

@@ -1,4 +1,4 @@
-import { exec, execSync } from 'node:child_process';
+import { execSync } from 'node:child_process';
 import { join } from 'node:path';
 import chokidar from 'chokidar';
 
