@@ -1,5 +1,18 @@
 # Devlink changelog
 
+## 0.0.3
+
+### Minor Changes
+
+- Implement full interactive mode with guided workflows for all commands.
+- Add premium welcome screen with "Graceful" font and "by MayR Labs" subtitle.
+- Fix infinite publish loop in `publish:watch` mode with improved file ignoring and debouncing.
+- Fixed versioning issue where `devlink --version` reported an incorrect version.
+- Add new `update-all` command to sync all devlinked packages to their latest versions.
+- Improved store browsing and version/flag selection for the `add` command.
+- Integrated multi-select for cleaning installations.
+- Guided `retreat`, `restore`, and `remove` commands with project-aware package selection.
+
 ## 0.0.2 (2026-04-02)
 
 ### Major Enhancements

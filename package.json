@@ -1,6 +1,6 @@
 {
   "name": "@mayrlabs/devlink",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Work with npm/pnpm/yarn packages locally like a boss.",
   "private": false,
   "author": {
@@ -65,5 +65,6 @@
   },
   "publishConfig": {
     "access": "public"
-  }
+  },
+  "files": ["dist", "README.md", "CHANGELOG.md", "package.json"]
 }

@@ -137,6 +137,12 @@ export const publishPackageWatch = async (options: PublishPackageOptions) => {
 
   let isPublishing = false;
   let pendingPublish = false;
+  let debounceTimeout: NodeJS.Timeout | null = null;
+
+  // Default to changed check in watch mode to skip redundant publishes
+  if (options.changed === undefined) {
+    options.changed = true;
+  }
 
   const runPublish = async () => {
     if (isPublishing) {
@@ -164,19 +170,37 @@ export const publishPackageWatch = async (options: PublishPackageOptions) => {
     ignored: [
       '**/node_modules/**',
       '**/.git/**',
+      '**/dist/**',
+      '**/build/**',
+      '**/out/**',
+      '**/lib/**',
+      '**/target/**',
+      '**/vendor/**',
+      '**/.next/**',
+      '**/.nuxt/**',
+      '**/.output/**',
+      '**/package-lock.json',
+      '**/pnpm-lock.yaml',
+      '**/yarn.lock',
       join(workingDir, 'package.json'),
+      join(workingDir, 'devlink.lock'),
+      join(workingDir, 'devlink.sig'),
     ],
     persistent: true,
     ignoreInitial: true,
   });
 
   watcher.on('all', async (event, path) => {
-    console.log(`File ${path} ${event}, republishing...`);
-    await runPublish();
+    if (debounceTimeout) clearTimeout(debounceTimeout);
+    debounceTimeout = setTimeout(async () => {
+      console.log(`File ${path} ${event}, republishing...`);
+      await runPublish();
+    }, 200);
   });
 
   const cleanup = async () => {
     console.log('Closing watcher...');
+    if (debounceTimeout) clearTimeout(debounceTimeout);
     await watcher.close();
     process.exit(0);
   };
