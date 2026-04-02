@@ -17,14 +17,17 @@ import pc from 'picocolors';
 import {
   addPackages,
   getPackageStoreDir,
+  parsePackageName,
   publishPackage,
   readPackageManifest,
   removePackages,
   updatePackages,
 } from './index.js';
 import { cleanInstallations, showInstallations } from './installations.js';
+import { readLockfile } from './lockfile.js';
 import { publishPackageWatch } from './publish.js';
 import { readStore, removePackageVersionFromStore } from './store.js';
+import { updateAllPackages } from './update.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -38,7 +41,7 @@ function getVersion() {
   }
 }
 
-async function handlePublish() {
+export async function handlePublish() {
   const workingDir = process.cwd();
   const pkg = readPackageManifest(workingDir);
 
@@ -56,7 +59,7 @@ async function handlePublish() {
 
   const useContent = await confirm({
     message: 'Show published files list?',
-    initialValue: false,
+    initialValue: true,
   });
 
   if (isCancel(useContent)) return;
@@ -87,7 +90,7 @@ async function handlePublish() {
   }
 }
 
-async function handleAdd() {
+export async function handleAdd(packageName?: string) {
   const store = readStore();
   const packageNames = Object.keys(store.packages);
 
@@ -96,26 +99,46 @@ async function handleAdd() {
     return;
   }
 
-  const selectedPackage = await select({
-    message: 'Select a package to add:',
-    options: packageNames.map((name) => ({ value: name, label: name })),
-  });
+  let selectedPackage = '';
+  let selectedVersion = '';
 
-  if (isCancel(selectedPackage)) return;
+  if (packageName) {
+    const parsed = parsePackageName(packageName);
+    selectedPackage = parsed.name;
+    selectedVersion = parsed.version;
+  }
 
-  const pkgData = store.packages[selectedPackage as string];
+  if (!selectedPackage) {
+    const selected = await select({
+      message: 'Select a package to add from store:',
+      options: packageNames.map((name) => ({ value: name, label: name })),
+    });
+
+    if (isCancel(selected)) return;
+    selectedPackage = selected as string;
+  }
+
+  const pkgData = store.packages[selectedPackage];
+  if (!pkgData) {
+    note(pc.red(`Package ${selectedPackage} not found in store.`), 'Error');
+    return;
+  }
+
   const versions = Object.keys(pkgData.versions).sort((a, b) => {
     const timeA = new Date(pkgData.versions[a].publishedAt).getTime();
     const timeB = new Date(pkgData.versions[b].publishedAt).getTime();
     return timeB - timeA;
   });
 
-  const selectedVersion = await select({
-    message: `Select version for ${pc.cyan(selectedPackage as string)}:`,
-    options: versions.map((v) => ({ value: v, label: v })),
-  });
+  if (!selectedVersion) {
+    const version = await select({
+      message: `Select version for ${pc.cyan(selectedPackage)}:`,
+      options: versions.map((v) => ({ value: v, label: v })),
+    });
 
-  if (isCancel(selectedVersion)) return;
+    if (isCancel(version)) return;
+    selectedVersion = version as string;
+  }
 
   const flags = await multiselect({
     message: 'Select installation flags:',
@@ -145,10 +168,10 @@ async function handleAdd() {
     workspace: (flags as string[]).includes('workspace'),
   });
 
-  s.stop(`${pc.green(selectedPackage as string)} added successfully!`);
+  s.stop(`${pc.green(selectedPackage)} added successfully!`);
 }
 
-async function handleInstallations() {
+export async function handleInstallations() {
   const action = await select({
     message: 'Manage installations:',
     options: [
@@ -162,30 +185,163 @@ async function handleInstallations() {
   if (action === 'show') {
     showInstallations({ packages: [] });
   } else {
-    // For clean, we could prompt for specific packages, but let's keep it simple for now or implement multi-select
     const dryRun = await confirm({
       message: 'Dry run?',
       initialValue: true,
     });
     if (isCancel(dryRun)) return;
 
+    const s = spinner();
+    s.start('Cleaning installations...');
     await cleanInstallations({ packages: [], dry: dryRun });
+    s.stop('Clean completed.');
   }
 }
 
-async function handleUpdate() {
-  // Similar to add but only for packages already in the project
-  // Actually, devlink update usually updates all or specific ones
+export async function handleUpdate() {
   const workingDir = process.cwd();
-  // We should ideally read the devlink.lock or package.json to see what's devlinked
-  // For now, call the standard update which handles this
-  const s = spinner();
-  s.start('Updating devlinked packages...');
-  await updatePackages([], { workingDir, update: true });
-  s.stop('Updates completed.');
+  const lockfile = readLockfile({ workingDir });
+  const linkedPackages = Object.keys(lockfile.packages);
+
+  if (linkedPackages.length === 0) {
+    note(pc.yellow('No packages are devlinked in this project.'), 'Info');
+    return;
+  }
+
+  const selectedPackages = await multiselect({
+    message: 'Select packages to update:',
+    options: [
+      { value: 'all', label: 'All packages', hint: 'update everything' },
+      ...linkedPackages.map((name) => ({ value: name, label: name })),
+    ],
+  });
+
+  if (isCancel(selectedPackages)) return;
+
+  const toUpdate = (selectedPackages as string[]).includes('all')
+    ? linkedPackages
+    : (selectedPackages as string[]);
+
+  const updates: string[] = [];
+  const store = readStore();
+
+  for (const pkgName of toUpdate) {
+    const pkgData = store.packages[pkgName];
+    if (!pkgData) {
+      note(
+        pc.yellow(`Package ${pkgName} not found in store, skipping.`),
+        'Warning',
+      );
+      continue;
+    }
+
+    const versions = Object.keys(pkgData.versions).sort((a, b) => {
+      const timeA = new Date(pkgData.versions[a].publishedAt).getTime();
+      const timeB = new Date(pkgData.versions[b].publishedAt).getTime();
+      return timeB - timeA;
+    });
+
+    const selectedVersion = await select({
+      message: `Select version for ${pc.cyan(pkgName)} (currently ${lockfile.packages[pkgName].version}):`,
+      options: [
+        { value: 'latest', label: 'latest', hint: versions[0] },
+        ...versions.map((v) => ({ value: v, label: v })),
+      ],
+    });
+
+    if (isCancel(selectedVersion)) return;
+    updates.push(
+      `${pkgName}@${selectedVersion === 'latest' ? versions[0] : selectedVersion}`,
+    );
+  }
+
+  if (updates.length > 0) {
+    const s = spinner();
+    s.start('Updating packages...');
+    await updatePackages(updates, { workingDir, update: true });
+    s.stop('Updates completed.');
+  }
 }
 
-async function handleStore() {
+export async function handleUpdateAll() {
+  const workingDir = process.cwd();
+  const s = spinner();
+  s.start('Updating all devlinked packages to latest...');
+  await updateAllPackages(workingDir);
+  s.stop('All packages updated to latest.');
+}
+
+export async function handleRetreat() {
+  const workingDir = process.cwd();
+  const lockfile = readLockfile({ workingDir });
+  const linkedPackages = Object.keys(lockfile.packages);
+
+  if (linkedPackages.length === 0) {
+    note(pc.yellow('No packages to retreat.'), 'Info');
+    return;
+  }
+
+  const selected = await multiselect({
+    message: 'Select packages to retreat:',
+    options: [
+      { value: 'all', label: 'All packages' },
+      ...linkedPackages.map((name) => ({ value: name, label: name })),
+    ],
+  });
+
+  if (isCancel(selected)) return;
+
+  const toRetreat = (selected as string[]).includes('all')
+    ? []
+    : (selected as string[]);
+  const isAll = (selected as string[]).includes('all');
+
+  const s = spinner();
+  s.start('Retreating packages...');
+  await removePackages(toRetreat, { workingDir, retreat: true, all: isAll });
+  s.stop('Retreat completed.');
+}
+
+export async function handleRestore() {
+  const workingDir = process.cwd();
+  const s = spinner();
+  s.start('Restoring retreated packages...');
+  await updatePackages([], { workingDir, restore: true });
+  s.stop('Restore completed.');
+}
+
+export async function handleRemove() {
+  const workingDir = process.cwd();
+  const lockfile = readLockfile({ workingDir });
+  const linkedPackages = Object.keys(lockfile.packages);
+
+  if (linkedPackages.length === 0) {
+    note(pc.yellow('No packages to remove.'), 'Info');
+    return;
+  }
+
+  const selected = await multiselect({
+    message: 'Select packages to remove:',
+    options: [
+      { value: 'all', label: 'All packages' },
+      ...linkedPackages.map((name) => ({ value: name, label: name })),
+    ],
+  });
+
+  if (isCancel(selected)) return;
+
+  const toRemove = (selected as string[]).includes('all')
+    ? []
+    : (selected as string[]);
+  const isAll = (selected as string[]).includes('all');
+
+  const s = spinner();
+  s.start('Removing packages...');
+  await removePackages(toRemove, { workingDir, all: isAll });
+  s.stop('Removal completed.');
+}
+
+export async function handleStore() {
   const store = readStore();
   const packageNames = Object.keys(store.packages);
 
@@ -277,9 +433,10 @@ async function handleStore() {
 export async function startInteractive() {
   console.clear();
 
-  const welcome = figlet.textSync('DEVLINK', { font: 'Graceful' as any });
+  const welcome = figlet.textSync('DEVLINK', { font: 'Graceful' });
   console.log(pc.cyan(welcome));
-  console.log(`${pc.dim(`v${getVersion()}`)}\n`);
+  console.log(pc.dim('  by MayR Labs'));
+  console.log(`${pc.dim(`  v${getVersion()}`)}\n`);
 
   intro(pc.bgCyan(pc.black(' Welcome to Devlink Interactive ')));
 
@@ -295,16 +452,19 @@ export async function startInteractive() {
           hint: 'Sync devlinked packages',
         },
         {
+          value: 'update-all',
+          label: '⚡ Update All',
+          hint: 'Update all to latest',
+        },
+        {
           value: 'installations',
           label: '🏘️ Installations',
           hint: 'Manage devlinked projects',
         },
+        { value: 'retreat', label: '🏃 Retreat', hint: 'Temporarily remove' },
+        { value: 'restore', label: '⏪ Restore', hint: 'Restore retreated' },
+        { value: 'remove', label: '🗑️ Remove', hint: 'Uninstall package' },
         { value: 'store', label: '📦 Store', hint: 'Browse local repository' },
-        {
-          value: 'remove',
-          label: '🗑️ Remove',
-          hint: 'Uninstall devlinked package',
-        },
         { value: 'exit', label: '🚪 Exit' },
       ],
     });
@@ -325,23 +485,24 @@ export async function startInteractive() {
         case 'update':
           await handleUpdate();
           break;
+        case 'update-all':
+          await handleUpdateAll();
+          break;
         case 'installations':
           await handleInstallations();
           break;
         case 'store':
           await handleStore();
           break;
-        case 'remove': {
-          const pkgs = await text({
-            message: 'Enter package names to remove (space separated):',
-          });
-          if (!isCancel(pkgs)) {
-            await removePackages((pkgs as string).split(' '), {
-              workingDir: process.cwd(),
-            });
-          }
+        case 'retreat':
+          await handleRetreat();
           break;
-        }
+        case 'restore':
+          await handleRestore();
+          break;
+        case 'remove':
+          await handleRemove();
+          break;
       }
     } catch (e: any) {
       note(pc.red(e.message || 'An error occurred'), 'Error');

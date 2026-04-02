@@ -1,17 +1,14 @@
 import { execSync } from 'node:child_process';
 import { join } from 'node:path';
 import chokidar from 'chokidar';
-
 import { copyPackageToStore } from './copy.js';
 import {
-  type PackageManifest,
   type PackageScripts,
   execLoudOptions,
   getPackageManager,
   getStorePackagesDir,
   readPackageManifest,
   updatePackages,
-  values,
 } from './index.js';
 import {
   type PackageInstallation,
