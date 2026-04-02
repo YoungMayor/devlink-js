@@ -28,12 +28,10 @@ export const getFileHash = (srcPath: string, relPath = '') => {
   });
 };
 
-const copyFile = async (srcPath: string, destPath: string, relPath = '') => {
+const copyFile = async (srcPath: string, destPath: string) => {
   await fsPromises.mkdir(dirname(destPath), { recursive: true });
 
-  await fsPromises.cp(srcPath, destPath, { recursive: true });
-
-  return getFileHash(srcPath, relPath);
+  return fsPromises.cp(srcPath, destPath, { recursive: true });
 };
 
 const mapObj = <T, R, K extends string>(
@@ -160,7 +158,7 @@ export const copyPackageToStore = async (options: {
       filesToCopy
         .sort()
         .map((relPath) =>
-          copyFile(join(copyFromDir, relPath), join(destDir, relPath), relPath),
+          copyFile(join(copyFromDir, relPath), join(destDir, relPath)),
         ),
     );
   };

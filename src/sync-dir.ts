@@ -40,6 +40,7 @@ export const copyDirSafe = async (
     ignore: ['**/node_modules/**'],
     dot: true,
     absolute: false,
+    onlyFiles: false,
   };
   const srcList = cache[srcDir] ? cache[srcDir].glob : await fg('**', options);
   const destList = await fg('**', { ...options, cwd: destDir });
