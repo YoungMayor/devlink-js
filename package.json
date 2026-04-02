@@ -1,6 +1,6 @@
 {
   "name": "@mayrlabs/devlink",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Work with npm/pnpm/yarn packages locally like a boss.",
   "private": false,
   "author": {
@@ -23,25 +23,30 @@
   "scripts": {
     "build": "tsdown",
     "prepublishOnly": "pnpm build && pnpm test",
-    "test": "mocha --extension ts --node-option loader=ts-node/esm test/index.ts",
+    "test": "mocha --extension ts --node-option loader=ts-node/esm \"test/**/*.ts\"",
     "lint": "biome check .",
     "format": "biome format --write .",
     "prepare": "husky",
     "release": "npx changeset publish --provenance"
   },
+  "engines": {
+    "node": ">=20.19.0"
+  },
   "dependencies": {
-    "chalk": "^4.1.0",
+    "@clack/prompts": "^1.2.0",
+    "chokidar": "^5.0.0",
     "detect-indent": "^6.0.0",
-    "glob": "^7.1.4",
-    "ignore": "^5.0.4",
+    "fast-glob": "^3.3.3",
+    "figlet": "^1.11.0",
     "ini": "^2.0.0",
     "npm-packlist": "^5.0.2",
+    "picocolors": "^1.1.1",
     "yargs": "^16.1.1"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.6.4",
     "@changesets/cli": "^2.30.0",
-    "@types/glob": "^7.2.0",
+    "@types/figlet": "^1.7.0",
     "@types/ini": "^4.1.1",
     "@types/mocha": "^10.0.6",
     "@types/node": "^20.12.7",

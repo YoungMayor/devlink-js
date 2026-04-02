@@ -1,10 +1,10 @@
 export const values = {
   myNameIs: 'devlink',
   myNameIsCapitalized: 'Devlink',
-  ignoreFileName: '.mayrlabs/.devlinkignore',
   lockfileName: 'devlink.lock',
   devlinkPackagesFolder: '.mayrlabs/devlink',
   rcFileName: '.mayrlabs/.devlinkrc',
+  storeFileName: 'store.json',
   prescript: 'predevlink',
   postscript: 'postdevlink',
   installationsFile: 'installations.json',

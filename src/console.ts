@@ -1,4 +1,4 @@
-import chalk, { type Chalk } from 'chalk';
+import pc from 'picocolors';
 
 declare const console: any;
 
@@ -38,10 +38,10 @@ export const makeConsoleColored = () => {
   overloadConsole({
     methods: ['log', 'warn', 'error', 'info'],
     output: ({ method, args, oldMethods }) => {
-      const fns: Record<string, Chalk> = {
-        warn: chalk.yellowBright,
-        info: chalk.blueBright,
-        error: chalk.redBright,
+      const fns: Record<string, (arg: string) => string> = {
+        warn: pc.yellow,
+        info: pc.blue,
+        error: pc.red,
       };
       const fn = fns[method] || ((arg: any) => arg);
 

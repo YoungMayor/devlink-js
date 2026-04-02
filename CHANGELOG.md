@@ -1,5 +1,23 @@
 # Devlink changelog
 
+## 0.0.2 (2026-04-02)
+
+### Major Enhancements
+
+- **Interactive Mode**: Fully interactive, guided CLI experience with a stunning dashboard.
+- **Persistent Store**: Local package repository tracked in `store.json` at `~/.mayrlabs/devlink`.
+- **Fast Discovery**: Replaced `glob` with `fast-glob` for lightning-fast file discovery.
+- **Watch Mode**: `devlink publish --watch` automatically syncs changes to all projects.
+- **Git Integration**: `devlink git <ignore|show>` to manage devlink-related files in `.gitignore`.
+- **Smart Suggestions**: "Did you mean?" suggestions for CLI command corrections.
+
+### Infrastructure & Cleanup
+
+- Transitioned to ESM-native architecture and modernized build tooling.
+- Integrated `npm-packlist` for standard file inclusion, respecting `.gitignore` and `.npmignore`.
+- Removed legacy commands (`push`, `link`) and deprecated `.devlinkignore` support.
+- Streamlined `package.json` by removing redundant binaries and internal dev scripts.
+
 ## 0.0.1
 
 ### Patch Changes
@@ -13,7 +31,7 @@
 - Modernized build tooling (Biome, tsdown, pnpm)
 - Upgraded TypeScript and enabled strict mode
 
-# Legacy (from yalc fork)
+## Legacy (from yalc fork)
 
 ## 1.0.0.pre.54 (Unreleased)
 
@@ -114,7 +132,7 @@
 
 ## 1.0.0.pre.36 (2020-06-14)
 
-- change version signature to semver metadata format (from - to +) - https://semver.org/#spec-item-10
+- change version signature to semver metadata format (from - to +) - <https://semver.org/#spec-item-10>
 
 - removed `don't forget to update/install deps` message
 

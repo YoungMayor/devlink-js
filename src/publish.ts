@@ -1,5 +1,6 @@
-import { exec, execSync } from 'node:child_process';
+import { execSync } from 'node:child_process';
 import { join } from 'node:path';
+import chokidar from 'chokidar';
 
 import { copyPackageToStore } from './copy.js';
 import {
@@ -18,6 +19,7 @@ import {
   removeInstallations,
 } from './installations.js';
 import { pmRunScriptCmd } from './pm.js';
+import { updatePackageInStore } from './store.js';
 
 export interface PublishPackageOptions {
   workingDir: string;
@@ -60,7 +62,7 @@ export const publishPackage = async (options: PublishPackageOptions) => {
       'Will not publish package with `private: true`' +
         ' use --private flag to force publishing.',
     );
-    return;
+    return undefined;
   }
 
   const preScripts: (keyof PackageScripts)[] = [
@@ -73,11 +75,11 @@ export const publishPackage = async (options: PublishPackageOptions) => {
 
   for (const script of preScripts) runPmScript(script);
 
-  const copyRes = await copyPackageToStore(options);
+  const finalVersion = await copyPackageToStore(options);
 
-  if (options.changed && !copyRes) {
+  if (options.changed && !finalVersion) {
     console.warn('Package content has not changed, skipping publishing.');
-    return;
+    return undefined;
   }
 
   const postScripts: (keyof PackageScripts)[] = [
@@ -94,7 +96,7 @@ export const publishPackage = async (options: PublishPackageOptions) => {
   const publishedPackageDir = join(
     getStorePackagesDir(),
     pkg.name,
-    pkg.version,
+    finalVersion as string,
   );
   const publishedPkg = readPackageManifest(publishedPackageDir);
 
@@ -107,6 +109,8 @@ export const publishPackage = async (options: PublishPackageOptions) => {
   console.log(
     `${publishedPkg.name}@${publishedPkg.version} published in store.`,
   );
+
+  updatePackageInStore(publishedPkg.name, publishedPkg.version);
 
   if (options.push) {
     const installationsConfig = readInstallationsFile();
@@ -126,4 +130,62 @@ export const publishPackage = async (options: PublishPackageOptions) => {
     }
     await removeInstallations(installationsToRemove);
   }
+
+  return finalVersion as string;
+};
+
+export const publishPackageWatch = async (options: PublishPackageOptions) => {
+  const { workingDir } = options;
+  console.log(`Watching for changes in ${workingDir}...`);
+
+  let isPublishing = false;
+  let pendingPublish = false;
+
+  const runPublish = async () => {
+    if (isPublishing) {
+      pendingPublish = true;
+      return;
+    }
+
+    isPublishing = true;
+    try {
+      await publishPackage(options);
+    } catch (e) {
+      console.error('Error during republish:', e);
+    } finally {
+      isPublishing = false;
+      if (pendingPublish) {
+        pendingPublish = false;
+        await runPublish();
+      }
+    }
+  };
+
+  await runPublish();
+
+  const watcher = chokidar.watch(workingDir, {
+    ignored: [
+      '**/node_modules/**',
+      '**/.git/**',
+      join(workingDir, 'package.json'),
+    ],
+    persistent: true,
+    ignoreInitial: true,
+  });
+
+  watcher.on('all', async (event, path) => {
+    console.log(`File ${path} ${event}, republishing...`);
+    await runPublish();
+  });
+
+  const cleanup = async () => {
+    console.log('Closing watcher...');
+    await watcher.close();
+    process.exit(0);
+  };
+
+  process.on('SIGINT', cleanup);
+  process.on('SIGTERM', cleanup);
+
+  return watcher;
 };

@@ -7,6 +7,7 @@ import {
 } from './installations.js';
 
 import { readLockfile, removeLockfile, writeLockfile } from './lockfile.js';
+import { decrementInstallation } from './store.js';
 
 import {
   parsePackageName,
@@ -72,8 +73,13 @@ export const removePackages = async (
   let lockfileUpdated = false;
   const removedPackagedFromManifest: string[] = [];
 
+  const removedVersions: Record<string, string> = {};
+
   for (const name of packagesToRemove) {
     const lockedPackage = lockFileConfig.packages[name];
+    if (lockedPackage?.version) {
+      removedVersions[name] = lockedPackage.version;
+    }
 
     let depsWithPackage: Record<string, string> | undefined;
 
@@ -125,8 +131,10 @@ export const removePackages = async (
 
   for (const name of packagesToRemove) {
     if (!options.retreat) {
-      if (fs.existsSync(join(devlinkFolder, name))) {
+      const version = removedVersions[name];
+      if (version && fs.existsSync(join(devlinkFolder, name))) {
         fs.rmSync(join(devlinkFolder, name), { recursive: true, force: true });
+        decrementInstallation(name, version);
       }
     }
   }
