@@ -139,11 +139,6 @@ export const copyPackageToStore = async (options: {
   if (!pkg) throw new Error('Error copying package to store.');
 
   const copyFromDir = options.workingDir;
-  const storePackageStoreDir = join(
-    getStorePackagesDir(),
-    pkg.name,
-    pkg.version,
-  );
 
   const filesToCopy: string[] = await (
     await npmPacklist({ path: workingDir })
@@ -157,9 +152,9 @@ export const copyPackageToStore = async (options: {
 
     console.info(`Total ${filesToCopy.length} files.`);
   }
-  const copyFilesToStore = async () => {
-    if (fs.existsSync(storePackageStoreDir)) {
-      await fsPromises.rm(storePackageStoreDir, {
+  const copyFilesToStore = async (destDir: string) => {
+    if (fs.existsSync(destDir)) {
+      await fsPromises.rm(destDir, {
         recursive: true,
         force: true,
       });
@@ -169,41 +164,43 @@ export const copyPackageToStore = async (options: {
       filesToCopy
         .sort()
         .map((relPath) =>
-          copyFile(
-            join(copyFromDir, relPath),
-            join(storePackageStoreDir, relPath),
-            relPath,
-          ),
+          copyFile(join(copyFromDir, relPath), join(destDir, relPath), relPath),
         ),
     );
   };
 
-  const hashes = options.changed
-    ? await Promise.all(
-        filesToCopy
-          .sort()
-          .map((relPath) => getFileHash(join(copyFromDir, relPath), relPath)),
-      )
-    : await copyFilesToStore();
+  const hashes = await Promise.all(
+    filesToCopy
+      .sort()
+      .map((relPath) => getFileHash(join(copyFromDir, relPath), relPath)),
+  );
 
   const signature = crypto
     .createHash('md5')
     .update(hashes.join(''))
     .digest('hex');
 
+  const versionPre = options.signature
+    ? `+${signature.substring(0, shortSignatureLength)}`
+    : '';
+
+  const finalVersion = pkg.version + versionPre;
+
+  const storePackageStoreDir = join(
+    getStorePackagesDir(),
+    pkg.name,
+    finalVersion,
+  );
+
   if (options.changed) {
     const publishedSig = readSignatureFile(storePackageStoreDir);
 
     if (signature === publishedSig) return false;
-
-    await copyFilesToStore();
   }
 
-  writeSignatureFile(storePackageStoreDir, signature);
+  await copyFilesToStore(storePackageStoreDir);
 
-  const versionPre = options.signature
-    ? `+${signature.substring(0, shortSignatureLength)}`
-    : '';
+  writeSignatureFile(storePackageStoreDir, signature);
 
   const resolveDeps = (pkg: PackageManifest): PackageManifest =>
     options.workspaceResolve ? resolveWorkspaces(pkg, workingDir) : pkg;
@@ -211,10 +208,10 @@ export const copyPackageToStore = async (options: {
   const pkgToWrite: PackageManifest = {
     ...resolveDeps(devMod ? modPackageDev(pkg) : pkg),
     devlinkSig: signature,
-    version: pkg.version + versionPre,
+    version: finalVersion,
   };
 
   writePackageManifest(storePackageStoreDir, pkgToWrite);
 
-  return signature;
+  return finalVersion;
 };

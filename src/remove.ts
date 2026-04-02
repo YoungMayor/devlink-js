@@ -73,8 +73,13 @@ export const removePackages = async (
   let lockfileUpdated = false;
   const removedPackagedFromManifest: string[] = [];
 
+  const removedVersions: Record<string, string> = {};
+
   for (const name of packagesToRemove) {
     const lockedPackage = lockFileConfig.packages[name];
+    if (lockedPackage?.version) {
+      removedVersions[name] = lockedPackage.version;
+    }
 
     let depsWithPackage: Record<string, string> | undefined;
 
@@ -126,10 +131,10 @@ export const removePackages = async (
 
   for (const name of packagesToRemove) {
     if (!options.retreat) {
-      const lockedPackage = lockFileConfig.packages[name];
-      if (lockedPackage?.version && fs.existsSync(join(devlinkFolder, name))) {
+      const version = removedVersions[name];
+      if (version && fs.existsSync(join(devlinkFolder, name))) {
         fs.rmSync(join(devlinkFolder, name), { recursive: true, force: true });
-        decrementInstallation(name, lockedPackage.version);
+        decrementInstallation(name, version);
       }
     }
   }

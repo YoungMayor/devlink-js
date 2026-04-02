@@ -62,7 +62,7 @@ export const publishPackage = async (options: PublishPackageOptions) => {
       'Will not publish package with `private: true`' +
         ' use --private flag to force publishing.',
     );
-    return;
+    return undefined;
   }
 
   const preScripts: (keyof PackageScripts)[] = [
@@ -75,11 +75,11 @@ export const publishPackage = async (options: PublishPackageOptions) => {
 
   for (const script of preScripts) runPmScript(script);
 
-  const copyRes = await copyPackageToStore(options);
+  const finalVersion = await copyPackageToStore(options);
 
-  if (options.changed && !copyRes) {
+  if (options.changed && !finalVersion) {
     console.warn('Package content has not changed, skipping publishing.');
-    return;
+    return undefined;
   }
 
   const postScripts: (keyof PackageScripts)[] = [
@@ -96,7 +96,7 @@ export const publishPackage = async (options: PublishPackageOptions) => {
   const publishedPackageDir = join(
     getStorePackagesDir(),
     pkg.name,
-    pkg.version,
+    finalVersion as string,
   );
   const publishedPkg = readPackageManifest(publishedPackageDir);
 
@@ -130,6 +130,8 @@ export const publishPackage = async (options: PublishPackageOptions) => {
     }
     await removeInstallations(installationsToRemove);
   }
+
+  return finalVersion as string;
 };
 
 export const publishPackageWatch = async (options: PublishPackageOptions) => {

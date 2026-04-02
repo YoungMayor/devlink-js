@@ -23,7 +23,7 @@
   "scripts": {
     "build": "tsdown",
     "prepublishOnly": "pnpm build && pnpm test",
-    "test": "mocha --extension ts --node-option loader=ts-node/esm test/index.ts",
+    "test": "mocha --extension ts --node-option loader=ts-node/esm \"test/**/*.ts\"",
     "lint": "biome check .",
     "format": "biome format --write .",
     "prepare": "husky",

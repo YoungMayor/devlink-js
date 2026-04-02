@@ -12,7 +12,7 @@ import {
   writePackageManifest,
 } from './index.js';
 import { addInstallations } from './installations.js';
-import { addPackageToLockfile } from './lockfile.js';
+import { addPackageToLockfile, readLockfile } from './lockfile.js';
 import type { PackageScripts } from './pkg.js';
 import { getPackageManager, pmRunScriptCmd } from './pm.js';
 import { incrementInstallation } from './store.js';
@@ -127,6 +127,8 @@ export const addPackages = async (
       name,
     );
 
+    let versionToInstall = '';
+
     if (!options.restore) {
       const storedPackagePath = getPackageStoreDir(name);
 
@@ -138,7 +140,7 @@ export const addPackages = async (
         return null;
       }
 
-      const versionToInstall = version || getLatestPackageVersion(name);
+      versionToInstall = version || getLatestPackageVersion(name);
 
       const storedPackageDir = getPackageStoreDir(name, versionToInstall);
 
@@ -154,6 +156,9 @@ export const addPackages = async (
       await copyDirSafe(storedPackageDir, destDevlinkCopyDir, !options.replace);
       incrementInstallation(name, versionToInstall);
     } else {
+      const lockFileConfig = readLockfile({ workingDir });
+      versionToInstall = lockFileConfig.packages[name]?.version || '';
+
       console.log(
         `Restoring package \`${packageName}\` from .mayrlabs/devlink directory`,
       );
@@ -303,7 +308,7 @@ export const addPackages = async (
     return {
       signature,
       name,
-      version,
+      version: versionToInstall,
       replaced: replacedVersion,
       path: options.workingDir,
     };

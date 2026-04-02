@@ -55,14 +55,14 @@ const depPackageDir = join(tmpDir, values.depPackage);
 const depPackage2Dir = join(tmpDir, values.depPackage2);
 const projectDir = join(tmpDir, values.project);
 
-const publishedPackagePath = join(
+let publishedPackagePath = join(
   storeMainDr,
   'packages',
   values.depPackage,
   values.depPackageVersion,
 );
 
-const publishedPackage2Path = join(
+let publishedPackage2Path = join(
   storeMainDr,
   'packages',
   values.depPackage2,
@@ -109,15 +109,20 @@ describe('Devlink package manager', function () {
   });
   describe('Package publish', function () {
     this.timeout(5000);
-    before(() => {
+    before(async () => {
       console.time('Package publish');
-      return publishPackage({
+      const finalVersion = (await publishPackage({
         workingDir: depPackageDir,
         signature: true,
         workspaceResolve: true,
-      }).then(() => {
-        console.timeEnd('Package publish');
-      });
+      })) as string;
+      console.timeEnd('Package publish');
+      publishedPackagePath = join(
+        storeMainDr,
+        'packages',
+        values.depPackage,
+        finalVersion,
+      );
     });
 
     it('publishes package to store', () => {
@@ -250,19 +255,23 @@ describe('Devlink package manager', function () {
   });
 
   describe('Package 2 (without `files` in manifest) publish', () => {
-    const publishedFilePath = join(publishedPackage2Path, 'file.txt');
-
     const originalFilePath = join(depPackage2Dir, 'file.txt');
-    before(() => {
+    before(async () => {
       console.time('Package2 publish');
-      return publishPackage({
+      const finalVersion = (await publishPackage({
         workingDir: depPackage2Dir,
-      }).then(() => {
-        console.timeEnd('Package2 publish');
-      });
+      })) as string;
+      console.timeEnd('Package2 publish');
+      publishedPackage2Path = join(
+        storeMainDr,
+        'packages',
+        values.depPackage2,
+        finalVersion,
+      );
     });
 
     it('publishes package to store', () => {
+      const publishedFilePath = join(publishedPackage2Path, 'file.txt');
       checkExists(publishedFilePath);
       checkExists(join(publishedPackage2Path, 'package.json'));
     });
@@ -285,11 +294,13 @@ describe('Devlink package manager', function () {
     });
     it('places devlink.lock correct info about file', () => {
       const lockFile = readLockfile({ workingDir: projectDir });
+      const signature = extractSignature(lockFile, values.depPackage);
       deepEqual(lockFile.packages, {
         [values.depPackage]: {
           file: true,
           replaced: '1.0.0',
-          signature: extractSignature(lockFile, values.depPackage),
+          signature: signature,
+          version: `${values.depPackageVersion}+${signature.substring(0, 8)}`,
         },
       });
     });
@@ -329,11 +340,13 @@ describe('Devlink package manager', function () {
     it('does not change devlink.lock', () => {
       const lockFile = readLockfile({ workingDir: projectDir });
       console.log('lockFile', lockFile);
+      const signature = extractSignature(lockFile, values.depPackage);
       deepEqual(lockFile.packages, {
         [values.depPackage]: {
           file: true,
           replaced: '1.0.0',
-          signature: extractSignature(lockFile, values.depPackage),
+          signature: signature,
+          version: `${values.depPackageVersion}+${signature.substring(0, 8)}`,
         },
       });
     });
@@ -350,11 +363,13 @@ describe('Devlink package manager', function () {
     });
     it('does not updates devlink.lock', () => {
       const lockFile = readLockfile({ workingDir: projectDir });
+      const signature = extractSignature(lockFile, values.depPackage);
       deepEqual(lockFile.packages, {
         [values.depPackage]: {
           file: true,
           replaced: '1.0.0',
-          signature: extractSignature(lockFile, values.depPackage),
+          signature: signature,
+          version: `${values.depPackageVersion}+${signature.substring(0, 8)}`,
         },
       });
     });
@@ -370,11 +385,13 @@ describe('Devlink package manager', function () {
 
     it('does not updates devlink.lock', () => {
       const lockFile = readLockfile({ workingDir: projectDir });
+      const signature = extractSignature(lockFile, values.depPackage);
       deepEqual(lockFile.packages, {
         [values.depPackage]: {
           file: true,
           replaced: '1.0.0',
-          signature: extractSignature(lockFile, values.depPackage),
+          signature: signature,
+          version: `${values.depPackageVersion}+${signature.substring(0, 8)}`,
         },
       });
     });
@@ -467,11 +484,13 @@ describe('Devlink package manager', function () {
     });
     it('places devlink.lock correct info about file', () => {
       const lockFile = readLockfile({ workingDir: projectDir });
+      const signature = extractSignature(lockFile, values.depPackage);
       deepEqual(lockFile.packages, {
         [values.depPackage]: {
           link: true,
           replaced: '1.0.0',
-          signature: extractSignature(lockFile, values.depPackage),
+          signature: signature,
+          version: `${values.depPackageVersion}+${signature.substring(0, 8)}`,
         },
       });
     });
@@ -497,11 +516,13 @@ describe('Devlink package manager', function () {
     });
     it('places devlink.lock correct info about file', () => {
       const lockFile = readLockfile({ workingDir: projectDir });
+      const signature = extractSignature(lockFile, values.depPackage);
       deepEqual(lockFile.packages, {
         [values.depPackage]: {
           link: true,
           replaced: '1.0.0',
-          signature: extractSignature(lockFile, values.depPackage),
+          signature: signature,
+          version: `${values.depPackageVersion}+${signature.substring(0, 8)}`,
         },
       });
     });
