@@ -16,7 +16,17 @@ import {
   values,
 } from './index.js';
 import { cleanInstallations, showInstallations } from './installations.js';
-import { startInteractive } from './interactive.js';
+import {
+  handleAdd,
+  handleInstallations,
+  handlePublish,
+  handleRemove,
+  handleRestore,
+  handleRetreat,
+  handleUpdate,
+  handleUpdateAll,
+  startInteractive,
+} from './interactive.js';
 import { publishPackageWatch } from './publish.js';
 import type { PublishPackageOptions } from './publish.js';
 import { readRcConfig } from './rc.js';
@@ -89,12 +99,25 @@ const commands = [
   'help',
 ];
 
+const isTTY = process.stdin.isTTY && process.stdout.isTTY;
+
+const shouldRunInteractive = (argv: any, positionalArgsCount = 0) => {
+  if (argv.interactive !== undefined) return !!argv.interactive;
+  return isTTY && argv._.length <= positionalArgsCount;
+};
+
 if (process.argv.length <= 2) {
   await startInteractive();
 } else {
   /* tslint:disable-next-line */
   const argv = await yargs(process.argv.slice(2))
     .usage(`${cliCommand} [command] [options] [package1 [package2...]]`)
+    .version(getVersionMessage())
+    .alias('v', 'version')
+    .option('interactive', {
+      type: 'boolean',
+      describe: 'Run in interactive mode',
+    })
     .coerce('store-folder', (folder: string) => {
       if (!devlinkGlobal.devlinkStoreMainDir) {
         devlinkGlobal.devlinkStoreMainDir = resolve(folder);
@@ -119,12 +142,17 @@ if (process.argv.length <= 2) {
           .boolean(['push', 'watch'].concat(publishFlags));
       },
       handler: async (argv) => {
-        const options = getPublishOptions(argv);
         if (argv.watch) {
-          await publishPackageWatch(options);
-        } else {
-          await publishPackage(options);
+          await publishPackageWatch(getPublishOptions(argv));
+          return;
         }
+
+        if (shouldRunInteractive(argv, 1)) {
+          await handlePublish();
+          return;
+        }
+
+        await publishPackage(getPublishOptions(argv));
       },
     })
     .command({
@@ -150,6 +178,10 @@ if (process.argv.length <= 2) {
       builder: (y) => y.boolean(['dry']),
       handler: async (argv) => {
         const action = argv._[1];
+        if (shouldRunInteractive(argv, 1)) {
+          await handleInstallations();
+          return;
+        }
         const packages = argv._.slice(2) as string[];
         switch (action) {
           case 'show':
@@ -179,7 +211,31 @@ if (process.argv.length <= 2) {
           .help(true);
       },
       handler: async (argv) => {
-        await addPackages(argv._.slice(1) as string[], {
+        const packages = argv._.slice(1) as string[];
+        const hasFlags =
+          argv.dev ||
+          argv.link ||
+          argv.restore ||
+          argv.pure ||
+          argv.workspace ||
+          argv.update ||
+          argv.upgrade;
+
+        if (shouldRunInteractive(argv, 1) && !hasFlags) {
+          await handleAdd();
+          return;
+        }
+
+        if (
+          packages.length === 1 &&
+          !hasFlags &&
+          shouldRunInteractive(argv, 2)
+        ) {
+          await handleAdd(packages[0]);
+          return;
+        }
+
+        await addPackages(packages, {
           dev: !!argv.dev,
           linkDep: !!argv.link,
           restore: !!argv.restore,
@@ -200,7 +256,12 @@ if (process.argv.length <= 2) {
           .help(true);
       },
       handler: async (argv) => {
-        await updatePackages(argv._.slice(1) as string[], {
+        const packages = argv._.slice(1) as string[];
+        if (packages.length === 0 && shouldRunInteractive(argv, 1)) {
+          await handleUpdate();
+          return;
+        }
+        await updatePackages(packages, {
           update: !!(argv.update || argv.upgrade),
           restore: !!argv.restore,
           workingDir: process.cwd(),
@@ -210,8 +271,9 @@ if (process.argv.length <= 2) {
     .command({
       command: 'update-all',
       describe: 'Update all devlinked packages to latest version',
-      handler: async () => {
-        await updateAllPackages(process.cwd());
+      handler: async (argv) => {
+        if (shouldRunInteractive(argv, 1)) await handleUpdateAll();
+        else await updateAllPackages(process.cwd());
       },
     })
     .command({
@@ -224,7 +286,12 @@ if (process.argv.length <= 2) {
           .help(true);
       },
       handler: async (argv) => {
-        await updatePackages(argv._.slice(1) as string[], {
+        const packages = argv._.slice(1) as string[];
+        if (packages.length === 0 && shouldRunInteractive(argv, 1)) {
+          await handleRestore();
+          return;
+        }
+        await updatePackages(packages, {
           update: !!(argv.update || argv.upgrade),
           restore: true,
           workingDir: process.cwd(),
@@ -241,7 +308,16 @@ if (process.argv.length <= 2) {
           .help(true);
       },
       handler: async (argv) => {
-        await removePackages(argv._.slice(1) as string[], {
+        const packages = argv._.slice(1) as string[];
+        if (
+          packages.length === 0 &&
+          !argv.all &&
+          shouldRunInteractive(argv, 1)
+        ) {
+          await handleRemove();
+          return;
+        }
+        await removePackages(packages, {
           retreat: !!argv.retreat,
           workingDir: process.cwd(),
           all: !!argv.all,
@@ -254,7 +330,16 @@ if (process.argv.length <= 2) {
         'Remove packages from project, but leave in lock file (to be restored later)',
       builder: (y) => y.boolean(['all']).help(true),
       handler: async (argv) => {
-        await removePackages(argv._.slice(1) as string[], {
+        const packages = argv._.slice(1) as string[];
+        if (
+          packages.length === 0 &&
+          !argv.all &&
+          shouldRunInteractive(argv, 1)
+        ) {
+          await handleRetreat();
+          return;
+        }
+        await removePackages(packages, {
           all: !!argv.all,
           retreat: true,
           workingDir: process.cwd(),
@@ -314,11 +399,6 @@ if (process.argv.length <= 2) {
       handler: (argv) => {
         const inputCommand = argv._[0] as string;
         if (!inputCommand) {
-          if (argv.version) {
-            console.log(getVersionMessage());
-          } else {
-            console.log('Use `devlink --help` to see available commands.');
-          }
           return;
         }
 
